@@ -1,4 +1,4 @@
-/*	$OpenBSD: pax.c,v 1.33 2012/04/19 04:26:46 deraadt Exp $	*/
+/*	$OpenBSD: pax.c,v 1.34 2012/12/04 02:24:45 deraadt Exp $	*/
 /*	$NetBSD: pax.c,v 1.5 1996/03/26 23:54:20 mrg Exp $	*/
 
 /*-
@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -49,7 +49,9 @@
 #include <err.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <stdio.h>
 #include <time.h>
+
 #include "pax.h"
 #include "extern.h"
 
