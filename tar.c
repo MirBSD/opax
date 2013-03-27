@@ -963,6 +963,12 @@ ustar_wr(ARCHD *arcn)
 	}
 
 	/*
+	 * user asked that dirs not be written to the archive
+	 */
+	if (arcn->type == PAX_DIR && tar_nodir)
+		return (1);
+
+	/*
 	 * check the length of the linkname
 	 */
 	if (PAX_IS_LINK(arcn->type) &&

@@ -174,7 +174,7 @@ FSUB fsub[] = {
 /* 7: POSIX USTAR */
 	{"ustar", 10240, BLKMULT, 0, 1, BLKMULT, 0, ustar_id, ustar_strd,
 	ustar_rd, tar_endrd, ustar_stwr, ustar_wr, tar_endwr, tar_trail,
-	rd_wrfile, wr_rdfile, bad_opt, 0},
+	rd_wrfile, wr_rdfile, tar_opt, 0},
 
 /* 8: SVR4 HEX CPIO WITH CRC, UID/GID/MTIME CLEARED (NORMALISED) */
 	{"v4norm", 512, sizeof(HD_VCPIO), 1, 0, 0, 1, crc_id, crc_strd,
