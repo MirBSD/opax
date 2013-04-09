@@ -1,4 +1,4 @@
-/*	$OpenBSD: tar.c,v 1.43 2010/12/02 04:08:27 tedu Exp $	*/
+/*	$OpenBSD: tar.c,v 1.46 2013/04/09 18:30:34 fgsch Exp $	*/
 /*	$NetBSD: tar.c,v 1.5 1995/03/21 09:07:49 cgd Exp $	*/
 
 /*-
@@ -39,6 +39,9 @@
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -62,6 +65,10 @@ static int ul_oct(u_long, char *, int, int);
 static int ot_oct(ot_type, char *, int, int);
 
 static void tar_dbgfld(const char *, const char *, size_t);
+
+#ifndef SMALL
+static int rd_xheader(ARCHD *, char *, HD_USTAR **);
+#endif
 
 static uid_t uid_nobody;
 static uid_t uid_warn;
@@ -746,24 +753,40 @@ ustar_rd(ARCHD *arcn, char *buf)
 	arcn->sb.st_nlink = 1;
 	hd = (HD_USTAR *)buf;
 
-	/*
-	 * see if the filename is split into two parts. if, so joint the parts.
-	 * we copy the prefix first and add a / between the prefix and name.
-	 */
-	dest = arcn->name;
-	if (*(hd->prefix) != '\0') {
-		cnt = fieldcpy(dest, sizeof(arcn->name) - 1, hd->prefix,
-		    sizeof(hd->prefix));
-		dest += cnt;
-		*dest++ = '/';
-		cnt++;
-	} else {
-		cnt = 0;
+#ifndef SMALL
+	/* Process the Extended header. */
+	if (hd->typeflag == XHDRTYPE || hd->typeflag == GHDRTYPE) {
+		if (rd_xheader(arcn, buf, &hd) < 0)
+			return (-1);
+	}
+#endif
+
+	if (!arcn->nlen) {
+		/*
+		 * See if the filename is split into two parts. if, so join
+		 * the parts.  We copy the prefix first and add a / between
+		 * the prefix and name.
+		 */
+		dest = arcn->name;
+		if (*(hd->prefix) != '\0') {
+			cnt = fieldcpy(dest, sizeof(arcn->name) - 1,
+			    hd->prefix, sizeof(hd->prefix));
+			dest += cnt;
+			*dest++ = '/';
+			cnt++;
+		} else
+			cnt = 0;
+
+		if (hd->typeflag != LONGLINKTYPE &&
+		    hd->typeflag != LONGNAMETYPE) {
+			arcn->nlen = cnt + expandname(dest,
+			    sizeof(arcn->name) - cnt, &gnu_name_string,
+			    hd->name, sizeof(hd->name));
+		}
 	}
 
-	if (hd->typeflag != LONGLINKTYPE && hd->typeflag != LONGNAMETYPE) {
-		arcn->nlen = cnt + expandname(dest, sizeof(arcn->name) - cnt,
-		    &gnu_name_string, hd->name, sizeof(hd->name));
+	if (!arcn->ln_nlen && 
+	    hd->typeflag != LONGLINKTYPE && hd->typeflag != LONGNAMETYPE) {
 		arcn->ln_nlen = expandname(arcn->ln_name, sizeof(arcn->ln_name),
 		    &gnu_link_string, hd->linkname, sizeof(hd->linkname));
 	}
@@ -1230,3 +1253,69 @@ tar_dbgfld(const char *pfx, const char *sp, size_t len)
 
 	strlcat(fbuf, tbuf, sizeof (fbuf));
 }
+
+#ifndef SMALL
+
+#define MINXHDRSZ	6
+
+static int
+rd_xheader(ARCHD *arcn, char *buf, HD_USTAR **hd)
+{
+	off_t len, size;
+	char *delim, *keyword;
+	char *nextp, *p;
+
+	size = (off_t)asc_ul((*hd)->size, sizeof((*hd)->size), OCT);
+	if (size < MINXHDRSZ) {
+		paxwarn(1, "Invalid extended header length");
+		return (-1);
+	}
+	if (rd_wrbuf(buf, size) != size)
+		return (-1);
+	if (rd_skip((off_t)BLKMULT - size) < 0)
+		return (-1);
+
+	for (p = buf; size > 0; size -= len, p = nextp) {
+		if (!isdigit(*p)) {
+			paxwarn(1, "Invalid extended header record");
+			return (-1);
+		}
+		errno = 0;
+		len = strtoll(p, &delim, 10);
+		if (*delim != ' ' || (errno == ERANGE &&
+		    (len == LLONG_MIN || len == LLONG_MAX)) ||
+		    len < MINXHDRSZ) {
+			paxwarn(1, "Invalid extended header record length");
+			return (-1);
+		}
+		if (len > size) {
+			paxwarn(1, "Extended header record length %j is "
+			    "out of range", len);
+			return (-1);
+		}
+		nextp = p + len;
+		keyword = p = delim + 1;
+		p = memchr(p, '=', len);
+		if (!p || nextp[-1] != '\n') {
+			paxwarn(1, "Malformed extended header record");
+			return (-1);
+		}
+		*p++ = nextp[-1] = '\0';
+		if ((*hd)->typeflag == XHDRTYPE) {
+			if (!strcmp(keyword, "path")) {
+				arcn->nlen = strlcpy(arcn->name, p,
+				    sizeof(arcn->name));
+			} else if (!strcmp(keyword, "linkpath")) {
+				arcn->ln_nlen = strlcpy(arcn->ln_name, p,
+				    sizeof(arcn->ln_name));
+			}
+		}
+	}
+
+	/* Update the ustar header. */
+	if (rd_wrbuf(buf, BLKMULT) != BLKMULT)
+		return (-1);
+	*hd = (HD_USTAR *)buf;
+	return (0);
+}
+#endif
