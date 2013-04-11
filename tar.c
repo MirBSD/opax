@@ -1,4 +1,4 @@
-/*	$OpenBSD: tar.c,v 1.46 2013/04/09 18:30:34 fgsch Exp $	*/
+/*	$OpenBSD: tar.c,v 1.47 2013/04/11 00:44:26 guenther Exp $	*/
 /*	$NetBSD: tar.c,v 1.5 1995/03/21 09:07:49 cgd Exp $	*/
 
 /*-
@@ -67,7 +67,7 @@ static int ot_oct(ot_type, char *, int, int);
 static void tar_dbgfld(const char *, const char *, size_t);
 
 #ifndef SMALL
-static int rd_xheader(ARCHD *, char *, HD_USTAR **);
+static int rd_xheader(ARCHD *, char *, off_t, char);
 #endif
 
 static uid_t uid_nobody;
@@ -756,7 +756,9 @@ ustar_rd(ARCHD *arcn, char *buf)
 #ifndef SMALL
 	/* Process the Extended header. */
 	if (hd->typeflag == XHDRTYPE || hd->typeflag == GHDRTYPE) {
-		if (rd_xheader(arcn, buf, &hd) < 0)
+		if (rd_xheader(arcn, buf,
+		    (off_t)asc_ul(hd->size, sizeof(hd->size), OCT),
+		    hd->typeflag) < 0)
 			return (-1);
 	}
 #endif
@@ -1259,13 +1261,12 @@ tar_dbgfld(const char *pfx, const char *sp, size_t len)
 #define MINXHDRSZ	6
 
 static int
-rd_xheader(ARCHD *arcn, char *buf, HD_USTAR **hd)
+rd_xheader(ARCHD *arcn, char *buf, off_t size, char typeflag)
 {
-	off_t len, size;
+	off_t len;
 	char *delim, *keyword;
 	char *nextp, *p;
 
-	size = (off_t)asc_ul((*hd)->size, sizeof((*hd)->size), OCT);
 	if (size < MINXHDRSZ) {
 		paxwarn(1, "Invalid extended header length");
 		return (-1);
@@ -1301,7 +1302,7 @@ rd_xheader(ARCHD *arcn, char *buf, HD_USTAR **hd)
 			return (-1);
 		}
 		*p++ = nextp[-1] = '\0';
-		if ((*hd)->typeflag == XHDRTYPE) {
+		if (typeflag == XHDRTYPE) {
 			if (!strcmp(keyword, "path")) {
 				arcn->nlen = strlcpy(arcn->name, p,
 				    sizeof(arcn->name));
@@ -1315,7 +1316,6 @@ rd_xheader(ARCHD *arcn, char *buf, HD_USTAR **hd)
 	/* Update the ustar header. */
 	if (rd_wrbuf(buf, BLKMULT) != BLKMULT)
 		return (-1);
-	*hd = (HD_USTAR *)buf;
 	return (0);
 }
 #endif
