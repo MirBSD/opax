@@ -1,4 +1,4 @@
-/*	$OpenBSD: cpio.c,v 1.19 2009/10/27 23:59:22 deraadt Exp $	*/
+/*	$OpenBSD: cpio.c,v 1.21 2013/05/25 13:33:47 lum Exp $	*/
 /*	$NetBSD: cpio.c,v 1.5 1995/03/21 09:07:13 cgd Exp $	*/
 
 /*-
@@ -174,7 +174,7 @@ cpio_endwr(void)
 }
 
 /*
- * rd_nam()
+ * rd_nm()
  *	read in the file name which follows the cpio header
  * Return:
  *	0 if ok, -1 otherwise
