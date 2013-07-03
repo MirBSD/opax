@@ -1,4 +1,4 @@
-/*	$OpenBSD: gen_subs.c,v 1.20 2009/10/27 23:59:22 deraadt Exp $	*/
+/*	$OpenBSD: gen_subs.c,v 1.22 2013/07/03 04:08:29 guenther Exp $	*/
 /*	$NetBSD: gen_subs.c,v 1.5 1995/03/21 09:07:26 cgd Exp $	*/
 
 /*-

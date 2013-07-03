@@ -1,4 +1,4 @@
-/*	$OpenBSD: tar.c,v 1.47 2013/04/11 00:44:26 guenther Exp $	*/
+/*	$OpenBSD: tar.c,v 1.48 2013/07/03 04:08:29 guenther Exp $	*/
 /*	$NetBSD: tar.c,v 1.5 1995/03/21 09:07:49 cgd Exp $	*/
 
 /*-
@@ -63,6 +63,7 @@ static u_long tar_chksm(char *, int);
 static char *name_split(char *, int);
 static int ul_oct(u_long, char *, int, int);
 static int ot_oct(ot_type, char *, int, int);
+static int uqd_oct(u_quad_t, char *, int, int);
 
 static void tar_dbgfld(const char *, const char *, size_t);
 
@@ -388,6 +389,7 @@ int
 tar_rd(ARCHD *arcn, char *buf)
 {
 	HD_TAR *hd;
+	u_quad_t val;
 	char *pt;
 
 	/*
@@ -414,7 +416,12 @@ tar_rd(ARCHD *arcn, char *buf)
 	arcn->sb.st_uid = (uid_t)asc_ul(hd->uid, sizeof(hd->uid), OCT);
 	arcn->sb.st_gid = (gid_t)asc_ul(hd->gid, sizeof(hd->gid), OCT);
 	arcn->sb.st_size = (off_t)asc_ot(hd->size, sizeof(hd->size), OCT);
-	arcn->sb.st_mtime = (time_t)asc_ul(hd->mtime, sizeof(hd->mtime), OCT);
+	val = asc_uqd(hd->mtime, sizeof(hd->mtime), OCT);
+	if ((time_t)val < 0 || (time_t)val != val)
+		arcn->sb.st_mtime = sizeof(time_t) > 4 ?
+		    (time_t)-1 : (time_t)INT_MAX;
+	else
+		arcn->sb.st_mtime = (time_t)val;
 	arcn->sb.st_ctime = arcn->sb.st_atime = arcn->sb.st_mtime;
 
 	/*
@@ -633,7 +640,7 @@ tar_wr(ARCHD *arcn)
 	if (ul_oct((u_long)arcn->sb.st_mode, hd->mode, sizeof(hd->mode), 0) ||
 	    ul_oct((u_long)arcn->sb.st_uid, hd->uid, sizeof(hd->uid), 0) ||
 	    ul_oct((u_long)arcn->sb.st_gid, hd->gid, sizeof(hd->gid), 0) ||
-	    ul_oct((u_long)(u_int)arcn->sb.st_mtime, hd->mtime, sizeof(hd->mtime), 1))
+	    uqd_oct(arcn->sb.st_mtime, hd->mtime, sizeof(hd->mtime), 1))
 		goto out;
 
 	/*
@@ -742,6 +749,7 @@ ustar_rd(ARCHD *arcn, char *buf)
 	int cnt = 0;
 	dev_t devmajor;
 	dev_t devminor;
+	u_quad_t val;
 
 	/*
 	 * we only get proper sized buffers
@@ -800,7 +808,12 @@ ustar_rd(ARCHD *arcn, char *buf)
 	arcn->sb.st_mode = (mode_t)(asc_ul(hd->mode, sizeof(hd->mode), OCT) &
 	    0xfff);
 	arcn->sb.st_size = (off_t)asc_ot(hd->size, sizeof(hd->size), OCT);
-	arcn->sb.st_mtime = (time_t)asc_ul(hd->mtime, sizeof(hd->mtime), OCT);
+	val = asc_uqd(hd->mtime, sizeof(hd->mtime), OCT);
+	if ((time_t)val < 0 || (time_t)val != val)
+		arcn->sb.st_mtime = sizeof(time_t) > 4 ?
+		    (time_t)-1 : (time_t)INT_MAX;
+	else
+		arcn->sb.st_mtime = (time_t)val;
 	arcn->sb.st_ctime = arcn->sb.st_atime = arcn->sb.st_mtime;
 
 	/*
@@ -923,7 +936,8 @@ ustar_wr(ARCHD *arcn)
 	char *pt;
 	char hdblk[sizeof(HD_USTAR)];
 
-	u_long t_uid, t_gid, t_mtime;
+	u_long t_uid, t_gid;
+	u_quad_t t_mtime;
 
 	anonarch_init();
 
@@ -993,7 +1007,10 @@ ustar_wr(ARCHD *arcn)
 
 	t_uid   = (anonarch & ANON_UIDGID) ? 0UL : (u_long)arcn->sb.st_uid;
 	t_gid   = (anonarch & ANON_UIDGID) ? 0UL : (u_long)arcn->sb.st_gid;
-	t_mtime = (anonarch & ANON_MTIME) ? 0UL : (u_long)(u_int)arcn->sb.st_mtime;
+	if (anonarch & ANON_MTIME)
+		t_mtime = 0;
+	else
+		t_mtime = (u_quad_t)arcn->sb.st_mtime;
 
 	/*
 	 * set the fields in the header that are type dependent
@@ -1088,7 +1105,7 @@ ustar_wr(ARCHD *arcn)
 			goto out;
 	}
 	if (ul_oct((u_long)arcn->sb.st_mode, hd->mode, sizeof(hd->mode), 3) ||
-	    ul_oct(t_mtime,hd->mtime,sizeof(hd->mtime),3))
+	    uqd_oct(t_mtime, hd->mtime, sizeof(hd->mtime), 3))
 		goto out;
 #define name_id(x) ((anonarch & ANON_NUMID) ? "" : (const char *)(x))
 	strncpy(hd->uname, name_id(name_uid(t_uid, 0)), sizeof(hd->uname));

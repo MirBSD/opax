@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/extern.h,v 1.26 2015/10/14 18:10:08 tg Exp $ */
-/*	$OpenBSD: extern.h,v 1.34 2010/12/02 04:08:27 tedu Exp $	*/
+/*	$OpenBSD: extern.h,v 1.36 2013/07/03 04:08:29 guenther Exp $	*/
 /*	$NetBSD: extern.h,v 1.5 1996/03/26 23:54:16 mrg Exp $	*/
 
 /*-
@@ -195,6 +195,8 @@ u_long asc_ul(char *, int, int);
 int ul_asc(u_long, char *, int, int);
 ot_type asc_ot(char *, int, int);
 int ot_asc(ot_type, char *, int, int);
+u_quad_t asc_uqd(char *, int, int);
+int uqd_asc(u_quad_t, char *, int, int);
 size_t fieldcpy(char *, size_t, const char *, size_t);
 
 /*
