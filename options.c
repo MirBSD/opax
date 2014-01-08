@@ -1,4 +1,4 @@
-/*	$OpenBSD: options.c,v 1.76 2012/12/04 02:24:45 deraadt Exp $	*/
+/*	$OpenBSD: options.c,v 1.80 2014/01/08 06:43:34 deraadt Exp $	*/
 /*	$NetBSD: options.c,v 1.6 1996/03/26 23:54:18 mrg Exp $	*/
 
 /*-
@@ -114,7 +114,7 @@ static const char LZOP_CMD[] = "lzop";
  *	Format specific routine table - MUST BE IN SORTED ORDER BY NAME
  *	(see pax.h for description of each function)
  *
- * 	name, blksz, hdsz, udev, hlk, blkagn, inhead, id, st_read,
+ *	name, blksz, hdsz, udev, hlk, blkagn, inhead, id, st_read,
  *	read, end_read, st_write, write, end_write, trail,
  *	rd_data, wr_data, options, is_uar
  */
@@ -1633,7 +1633,7 @@ opt_add(const char *str)
 /*
  * str_offt()
  *	Convert an expression of the following forms to an off_t > 0.
- * 	1) A positive decimal number.
+ *	1) A positive decimal number.
  *	2) A positive decimal number followed by a b (mult by 512).
  *	3) A positive decimal number followed by a k (mult by 1024).
  *	4) A positive decimal number followed by a m (mult by 512).
