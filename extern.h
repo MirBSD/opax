@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/extern.h,v 1.26 2015/10/14 18:10:08 tg Exp $ */
-/*	$OpenBSD: extern.h,v 1.37 2014/01/08 04:41:40 guenther Exp $	*/
+/*	$OpenBSD: extern.h,v 1.38 2014/01/08 04:48:29 guenther Exp $	*/
 /*	$NetBSD: extern.h,v 1.5 1996/03/26 23:54:16 mrg Exp $	*/
 
 /*-
@@ -155,7 +155,6 @@ int bcpio_wr(ARCHD *);
 /*
  * file_subs.c
  */
-extern char *gnu_name_string, *gnu_link_string;
 int file_creat(ARCHD *);
 void file_close(ARCHD *, int);
 int lnk_creat(ARCHD *, int *);
@@ -305,7 +304,7 @@ int chk_flnk(ARCHD *);
 /*
  * tar.c
  */
-extern char *gnu_hack_string;
+extern char *gnu_name_string, *gnu_link_string;
 int tar_endwr(void);
 off_t tar_endrd(void);
 int tar_trail(ARCHD *, char *, int, int *);
