@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/extern.h,v 1.26 2015/10/14 18:10:08 tg Exp $ */
-/*	$OpenBSD: extern.h,v 1.36 2013/07/03 04:08:29 guenther Exp $	*/
+/*	$OpenBSD: extern.h,v 1.37 2014/01/08 04:41:40 guenther Exp $	*/
 /*	$NetBSD: extern.h,v 1.5 1996/03/26 23:54:16 mrg Exp $	*/
 
 /*-
@@ -326,11 +326,14 @@ extern char fdgetline_err;
 char *fdgetline(int);
 int tty_init(void);
 void tty_prnt(const char *, ...)
+    __attribute__((__nonnull__(1)))
     __attribute__((__format__(__printf__, 1, 2)));
 char *tty_rd(void);
 void paxwarn(int, const char *, ...)
+    __attribute__((__nonnull__(2)))
     __attribute__((__format__(__printf__, 2, 3)));
 void syswarn(int, int, const char *, ...)
+    __attribute__((__nonnull__(3)))
     __attribute__((__format__(__printf__, 3, 4)));
 
 /*
