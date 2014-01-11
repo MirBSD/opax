@@ -1,4 +1,4 @@
-/*	$OpenBSD: ar_io.c,v 1.41 2014/01/08 04:42:24 guenther Exp $	*/
+/*	$OpenBSD: ar_io.c,v 1.44 2014/01/11 05:36:26 deraadt Exp $	*/
 /*	$NetBSD: ar_io.c,v 1.5 1996/03/26 23:54:13 mrg Exp $	*/
 
 /*-
@@ -410,14 +410,16 @@ ar_close(void)
 		return;
 	}
 
-	if (strcmp(NM_CPIO, argv0) == 0)
-		(void)fprintf(listf, "%" OT_FMT " blocks\n",
-		    (ot_type)((rdcnt ? rdcnt : wrcnt) / 5120));
-	else if (strcmp(NM_TAR, argv0) != 0)
+	if (strcmp(NM_TAR, argv0) != 0)
 		(void)fprintf(listf,
 		    "%s: %s vol %d, %lu files, %" OT_FMT " bytes read, %"
 		    OT_FMT " bytes written.\n", argv0, frmt->name, arvol-1,
 		    flcnt, (ot_type)rdcnt, (ot_type)wrcnt);
+#ifndef NOCPIO
+	else if (strcmp(NM_CPIO, argv0) == 0)
+		(void)fprintf(listf, "%" OT_FMT " blocks\n",
+		    (ot_type)((rdcnt ? rdcnt : wrcnt) / 5120));
+#endif /* !NOCPIO */
 	(void)fflush(listf);
 	flcnt = 0;
 }

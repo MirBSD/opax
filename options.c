@@ -1,4 +1,4 @@
-/*	$OpenBSD: options.c,v 1.80 2014/01/08 06:43:34 deraadt Exp $	*/
+/*	$OpenBSD: options.c,v 1.81 2014/01/11 05:36:26 deraadt Exp $	*/
 /*	$NetBSD: options.c,v 1.6 1996/03/26 23:54:18 mrg Exp $	*/
 
 /*-
@@ -125,6 +125,18 @@ FSUB fsub[] = {
 	uar_rd, uar_endrd, uar_stwr, uar_wr, no_op, uar_trail,
 	rd_wrfile, uar_wr_data, bad_opt, 1},
 
+#ifdef NOCPIO
+/* 1: OLD BINARY CPIO */
+	{ },
+/* 2: OLD OCTAL CHARACTER CPIO */
+	{ },
+/* 3: OLD OCTAL CHARACTER CPIO, UID/GID CLEARED (ANONYMISED) */
+	{ },
+/* 4: SVR4 HEX CPIO */
+	{ },
+/* 5: SVR4 HEX CPIO WITH CRC */
+	{ },
+#else
 /* 1: OLD BINARY CPIO */
 	{"bcpio", 5120, sizeof(HD_BCPIO), 1, 0, 0, 1, bcpio_id, cpio_strd,
 	bcpio_rd, bcpio_endrd, cpio_stwr, bcpio_wr, cpio_endwr, cpio_trail,
@@ -149,7 +161,7 @@ FSUB fsub[] = {
 	{"sv4crc", 5120, sizeof(HD_VCPIO), 1, 0, 0, 1, crc_id, crc_strd,
 	vcpio_rd, vcpio_endrd, crc_stwr, vcpio_wr, cpio_endwr, cpio_trail,
 	rd_wrfile, wr_rdfile, bad_opt, 0},
-
+#endif
 /* 6: OLD TAR */
 	{"tar", 10240, BLKMULT, 0, 1, BLKMULT, 0, tar_id, no_op,
 	tar_rd, tar_endrd, no_op_i, tar_wr, tar_endwr, tar_trail,
@@ -214,9 +226,11 @@ options(int argc, char **argv)
 	if ((n = strlen(argv[0])) >= 3 && !strcmp(argv[0] + n - 3, NM_TAR)) {
 		argv0 = NM_TAR;
 		tar_options(argc, argv);
+#ifndef NOCPIO
 	} else if (n >= 4 && !strcmp(argv[0] + n - 4, NM_CPIO)) {
 		argv0 = NM_CPIO;
 		cpio_options(argc, argv);
+#endif /* !NOCPIO */
 	} else {
 		argv0 = NM_PAX;
 		pax_options(argc, argv);
@@ -1164,6 +1178,7 @@ mkpath(char *path)
 	return (0);
 }
 
+#ifndef NOCPIO
 static void
 cpio_set_action(int op)
 {
@@ -1489,6 +1504,7 @@ cpio_options(int argc, char **argv)
 		break;
 	}
 }
+#endif /* !NOCPIO */
 
 /*
  * printflg()
@@ -1771,6 +1787,7 @@ tar_usage(void)
 	exit(1);
 }
 
+#ifndef NOCPIO
 /*
  * cpio_usage()
  *	print the usage summary to the user
@@ -1788,6 +1805,7 @@ cpio_usage(void)
 	    stderr);
 	exit(1);
 }
+#endif /* !NOCPIO */
 
 void
 anonarch_init(void)
