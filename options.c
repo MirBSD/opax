@@ -1,4 +1,4 @@
-/*	$OpenBSD: options.c,v 1.81 2014/01/11 05:36:26 deraadt Exp $	*/
+/*	$OpenBSD: options.c,v 1.83 2014/02/05 20:35:42 halex Exp $	*/
 /*	$NetBSD: options.c,v 1.6 1996/03/26 23:54:18 mrg Exp $	*/
 
 /*-
@@ -81,7 +81,6 @@ static OPLIST *optail = NULL;	/* option tail */
 static int no_op(void);
 static int no_op_i(int);
 static void printflg(unsigned int);
-static int c_frmt(const void *, const void *);
 static off_t str_offt(char *);
 static void pax_options(int, char **);
 static void pax_usage(void) __attribute__((__noreturn__));
@@ -111,7 +110,7 @@ static const char LZOP_CMD[] = "lzop";
 #define COMPRESS_GUESS_CMD ((const void *)&compress_program)
 
 /*
- *	Format specific routine table - MUST BE IN SORTED ORDER BY NAME
+ *	Format specific routine table
  *	(see pax.h for description of each function)
  *
  *	name, blksz, hdsz, udev, hlk, blkagn, inhead, id, st_read,
@@ -251,7 +250,6 @@ pax_options(int argc, char **argv)
 	unsigned int flg = 0;
 	unsigned int bflg = 0;
 	char *pt;
-	FSUB tmp;
 
 	/*
 	 * process option flags
@@ -439,16 +437,20 @@ pax_options(int argc, char **argv)
 			/*
 			 * specify an archive format on write
 			 */
-			tmp.name = optarg;
-			if ((frmt = (FSUB *)bsearch((void *)&tmp, (void *)fsub,
-			    sizeof(fsub)/sizeof(FSUB), sizeof(FSUB), c_frmt)) != NULL) {
+			for (i = 0; i < sizeof(fsub)/sizeof(FSUB); ++i)
+				if (fsub[i].name != NULL &&
+				    strcmp(fsub[i].name, optarg) == 0)
+					break;
+			if (i < sizeof(fsub)/sizeof(FSUB)) {
 				flg |= XF;
 				break;
 			}
 			paxwarn(1, "Unknown -x format: %s", optarg);
 			(void)fputs("pax: Known -x formats are:", stderr);
 			for (i = 0; i < (sizeof(fsub)/sizeof(FSUB)); ++i)
-				(void)fprintf(stderr, " %s", fsub[i].name);
+				if (fsub[i].name != NULL)
+					(void)fprintf(stderr, " %s",
+					    fsub[i].name);
 			(void)fputs("\n\n", stderr);
 			pax_usage();
 			break;
@@ -1204,7 +1206,6 @@ cpio_options(int argc, char **argv)
 	int c;
 	size_t i;
 	char *str;
-	FSUB tmp;
 	int fd;
 	const char *optstr;
 
@@ -1390,18 +1391,18 @@ cpio_options(int argc, char **argv)
 			 * specify an archive format on write
 			 */
 			if (!strcmp(optarg, "bin")) {
-				tmp.name = "bcpio";
+				optarg = "bcpio";
 			} else if (!strcmp(optarg, "crc")) {
-				tmp.name = "sv4crc";
+				optarg = "sv4crc";
 			} else if (!strcmp(optarg, "newc")) {
-				tmp.name = "sv4cpio";
+				optarg = "sv4cpio";
 			} else if (!strcmp(optarg, "odc")) {
-				tmp.name = "cpio";
-			} else {
-				tmp.name = optarg;
+				optarg = "cpio";
 			}
-			if ((frmt = (FSUB *)bsearch((void *)&tmp, (void *)fsub,
-			    sizeof(fsub)/sizeof(FSUB), sizeof(FSUB), c_frmt)) != NULL)
+			for (i = 0; i < sizeof(fsub)/sizeof(FSUB); ++i)
+				if (fsub[i].name != NULL &&
+				    strcmp(fsub[i].name, optarg) == 0)
+			if (i < sizeof(fsub)/sizeof(FSUB))
 				break;
 			paxwarn(1, "Unknown -H format: %s", optarg);
 			(void)fputs("cpio: Known -H formats are:", stderr);
@@ -1524,18 +1525,6 @@ printflg(unsigned int flg)
 		(void)fprintf(stderr, " -%c", flgch[pos-1]);
 	}
 	(void)putc('\n', stderr);
-}
-
-/*
- * c_frmt()
- *	comparison routine used by bsearch to find the format specified
- *	by the user
- */
-
-static int
-c_frmt(const void *a, const void *b)
-{
-	return(strcmp(((const FSUB *)a)->name, ((const FSUB *)b)->name));
 }
 
 /*
