@@ -1,4 +1,4 @@
-/*	$OpenBSD: tar.c,v 1.52 2014/01/08 06:41:49 guenther Exp $	*/
+/*	$OpenBSD: tar.c,v 1.53 2014/02/19 03:59:47 guenther Exp $	*/
 /*	$NetBSD: tar.c,v 1.5 1995/03/21 09:07:49 cgd Exp $	*/
 
 /*-
@@ -638,9 +638,10 @@ tar_wr(ARCHD *arcn)
 	 * copy those fields that are independent of the type
 	 */
 	if (ul_oct((u_long)arcn->sb.st_mode, hd->mode, sizeof(hd->mode), 0) ||
+	    uqd_oct(arcn->sb.st_mtime < 0 ? 0 : arcn->sb.st_mtime, hd->mtime,
+		sizeof(hd->mtime), 1) ||
 	    ul_oct((u_long)arcn->sb.st_uid, hd->uid, sizeof(hd->uid), 0) ||
-	    ul_oct((u_long)arcn->sb.st_gid, hd->gid, sizeof(hd->gid), 0) ||
-	    uqd_oct(arcn->sb.st_mtime, hd->mtime, sizeof(hd->mtime), 1))
+	    ul_oct((u_long)arcn->sb.st_gid, hd->gid, sizeof(hd->gid), 0))
 		goto out;
 
 	/*
@@ -1104,8 +1105,9 @@ ustar_wr(ARCHD *arcn)
 		if (ul_oct((u_long)gid_nobody, hd->gid, sizeof(hd->gid), 3))
 			goto out;
 	}
-	if (ul_oct((u_long)arcn->sb.st_mode, hd->mode, sizeof(hd->mode), 3) ||
-	    uqd_oct(t_mtime, hd->mtime, sizeof(hd->mtime), 3))
+	if (uqd_oct(t_mtime < 0 ? 0 : t_mtime, hd->mtime,
+		sizeof(hd->mtime), 3) ||
+	    ul_oct((u_long)arcn->sb.st_mode, hd->mode, sizeof(hd->mode), 3))
 		goto out;
 #define name_id(x) ((anonarch & ANON_NUMID) ? "" : (const char *)(x))
 	strncpy(hd->uname, name_id(name_uid(t_uid, 0)), sizeof(hd->uname));
