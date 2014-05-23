@@ -144,7 +144,7 @@ list(void)
 	 */
 	(void)(*frmt->end_rd)();
 	(void)sigprocmask(SIG_BLOCK, &s_mask, NULL);
-	ar_close();
+	ar_close(0);
 	pat_chk();
 }
 
@@ -361,9 +361,9 @@ popd:
 	 */
 	(void)(*frmt->end_rd)();
 	(void)sigprocmask(SIG_BLOCK, &s_mask, NULL);
-	ar_close();
+	ar_close(0);
 	sltab_process(0);
-	proc_dir();
+	proc_dir(0);
 	pat_chk();
 }
 
@@ -556,9 +556,9 @@ trailer:
 		wr_fin();
 	}
 	(void)sigprocmask(SIG_BLOCK, &s_mask, NULL);
-	ar_close();
+	ar_close(0);
 	if (tflag)
-		proc_dir();
+		proc_dir(0);
 	ftree_chk();
 }
 
@@ -972,9 +972,9 @@ copy(void)
 	 * multiple entry into the cleanup code.
 	 */
 	(void)sigprocmask(SIG_BLOCK, &s_mask, NULL);
-	ar_close();
+	ar_close(0);
 	sltab_process(0);
-	proc_dir();
+	proc_dir(0);
 	ftree_chk();
 }
 
