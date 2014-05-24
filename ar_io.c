@@ -1,4 +1,4 @@
-/*	$OpenBSD: ar_io.c,v 1.47 2014/05/23 21:58:26 guenther Exp $	*/
+/*	$OpenBSD: ar_io.c,v 1.48 2014/05/24 18:51:00 guenther Exp $	*/
 /*	$NetBSD: ar_io.c,v 1.5 1996/03/26 23:54:13 mrg Exp $	*/
 
 /*-
