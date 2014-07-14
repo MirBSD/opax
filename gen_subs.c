@@ -1,4 +1,4 @@
-/*	$OpenBSD: gen_subs.c,v 1.25 2014/01/09 03:12:25 guenther Exp $	*/
+/*	$OpenBSD: gen_subs.c,v 1.26 2014/07/14 05:58:19 guenther Exp $	*/
 /*	$NetBSD: gen_subs.c,v 1.5 1995/03/21 09:07:26 cgd Exp $	*/
 
 /*-
@@ -143,7 +143,6 @@ ls_list(ARCHD *arcn, time_t now, FILE *fp)
 	}
 	(void)putc(term, fp);
 	(void)fflush(fp);
-	return;
 }
 
 /*
@@ -166,7 +165,6 @@ ls_tty(ARCHD *arcn)
 		f_date[0] = '\0';
 	strmode(arcn->sb.st_mode, f_mode);
 	tty_prnt("%s%s %s\n", f_mode, f_date, arcn->name);
-	return;
 }
 
 void

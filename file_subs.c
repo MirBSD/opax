@@ -1,4 +1,4 @@
-/*	$OpenBSD: file_subs.c,v 1.32 2009/12/22 12:08:30 jasper Exp $	*/
+/*	$OpenBSD: file_subs.c,v 1.36 2014/07/14 05:58:19 guenther Exp $	*/
 /*	$NetBSD: file_subs.c,v 1.4 1995/03/21 09:07:18 cgd Exp $	*/
 
 /*-
@@ -802,7 +802,6 @@ set_ftime(char *fnm, time_t mtime, time_t atime, int frc)
 #endif
 		syswarn(1, errno, "Access/modification time set failed on: %s",
 		    fnm);
-	return;
 }
 
 #ifdef PAX_FUTIMES
@@ -833,7 +832,6 @@ fset_ftime(char *fnm, int fd, time_t mtime, time_t atime, int frc)
 	if (futimes(fd, tv) < 0)
 		syswarn(1, errno, "Access/modification time set failed on: %s",
 		    fnm);
-	return;
 }
 #endif
 
@@ -923,7 +921,6 @@ set_pmode(char *fnm, mode_t mode)
 	mode &= ABITS;
 	if (chmod(fnm, mode) < 0)
 		syswarn(1, errno, "Could not set permissions on %s", fnm);
-	return;
 }
 
 void
@@ -932,7 +929,6 @@ fset_pmode(char *fnm, int fd, mode_t mode)
 	mode &= ABITS;
 	if (fchmod(fd, mode) < 0)
 		syswarn(1, errno, "Could not set permissions on %s", fnm);
-	return;
 }
 
 /*
@@ -1113,7 +1109,6 @@ file_flush(int fd, char *fname, int isempt)
 
 	if (write(fd, blnk, 1) < 0)
 		syswarn(1, errno, "Failed write to file %s", fname);
-	return;
 }
 
 /*
@@ -1140,7 +1135,6 @@ rdfile_close(ARCHD *arcn, int *fd)
 	 * user wants last access time reset
 	 */
 	set_ftime(arcn->org_name, arcn->sb.st_mtime, arcn->sb.st_atime, 1);
-	return;
 }
 
 /*
