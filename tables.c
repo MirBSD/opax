@@ -1,4 +1,4 @@
-/*	$OpenBSD: tables.c,v 1.35 2014/07/14 05:58:19 guenther Exp $	*/
+/*	$OpenBSD: tables.c,v 1.36 2014/07/14 06:00:22 guenther Exp $	*/
 /*	$NetBSD: tables.c,v 1.4 1995/03/21 09:07:45 cgd Exp $	*/
 
 /*-
@@ -1206,11 +1206,11 @@ proc_dir(void)
  */
 
 u_int
-st_hash(char *name, int len, int tabsz)
+st_hash(const char *name, int len, int tabsz)
 {
-	char *pt;
+	const char *pt;
 	char *dest;
-	char *end;
+	const char *end;
 	int i;
 	u_int key = 0;
 	int steps;
