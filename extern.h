@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/extern.h,v 1.26 2015/10/14 18:10:08 tg Exp $ */
-/*	$OpenBSD: extern.h,v 1.39 2014/01/09 03:12:25 guenther Exp $	*/
+/*	$OpenBSD: extern.h,v 1.42 2014/07/14 06:00:22 guenther Exp $	*/
 /*	$NetBSD: extern.h,v 1.5 1996/03/26 23:54:16 mrg Exp $	*/
 
 /*-
