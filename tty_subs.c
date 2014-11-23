@@ -1,4 +1,4 @@
-/*	$OpenBSD: tty_subs.c,v 1.15 2012/12/04 02:24:45 deraadt Exp $	*/
+/*	$OpenBSD: tty_subs.c,v 1.16 2014/11/23 05:28:12 guenther Exp $	*/
 /*	$NetBSD: tty_subs.c,v 1.5 1995/03/21 09:07:52 cgd Exp $	*/
 
 /*-
@@ -71,7 +71,7 @@ static int ttyfd;
 int
 tty_init(void)
 {
-	if ((ttyfd = open(devtty, O_RDWR)) == -1 && iflag) {
+	if ((ttyfd = open(devtty, O_RDWR | O_CLOEXEC)) == -1 && iflag) {
 		paxwarn(1, "Fatal error, cannot open %s", devtty);
 		return (-1);
 	}
