@@ -1,4 +1,4 @@
-/*	$OpenBSD: sel_subs.c,v 1.24 2014/05/24 18:51:00 guenther Exp $	*/
+/*	$OpenBSD: sel_subs.c,v 1.25 2014/11/23 05:47:49 guenther Exp $	*/
 /*	$NetBSD: sel_subs.c,v 1.5 1995/03/21 09:07:42 cgd Exp $	*/
 
 /*-
@@ -560,7 +560,7 @@ str_sec(const char *p, time_t *tval)
 	switch (len) {
 	case 12:				/* cc */
 		bigyear = ATOI2(p);
-		lt->tm_year = (bigyear * 100) - TM_YEAR_BASE;
+		lt->tm_year = (bigyear * 100) - 1900;
 		yearset = 1;
 		/* FALLTHROUGH */
 	case 10:				/* yy */
@@ -569,9 +569,7 @@ str_sec(const char *p, time_t *tval)
 		} else {
 			lt->tm_year = ATOI2(p);
 			if (lt->tm_year < 69)		/* hack for 2000 ;-} */
-				lt->tm_year += (2000 - TM_YEAR_BASE);
-			else
-				lt->tm_year += (1900 - TM_YEAR_BASE);
+				lt->tm_year += (2000 - 1900);
 		}
 		/* FALLTHROUGH */
 	case 8:					/* mm */
