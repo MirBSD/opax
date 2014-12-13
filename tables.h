@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/tables.h,v 1.4 2008/11/08 23:03:39 tg Exp $ */
-/*	$OpenBSD: tables.h,v 1.8 2006/08/05 23:05:13 ray Exp $	*/
+/*	$OpenBSD: tables.h,v 1.9 2014/12/13 21:02:32 guenther Exp $	*/
 /*	$NetBSD: tables.h,v 1.3 1995/03/21 09:07:47 cgd Exp $	*/
 
 /*-
@@ -61,8 +61,8 @@
  */
 typedef struct hrdlnk {
 	char		*name;	/* name of first file seen with this ino/dev */
-	dev_t		dev;	/* files device number */
 	ino_t		ino;	/* files inode number */
+	dev_t		dev;	/* files device number */
 	u_long		nlink;	/* expected link count */
 	struct hrdlnk	*fow;
 } HRDLNK;
@@ -79,10 +79,10 @@ typedef struct hrdlnk {
  * handle is greatly increased).
  */
 typedef struct ftm {
-	int		namelen;	/* file name length */
-	time_t		mtime;		/* files last modification time */
 	off_t		seek;		/* location in scratch file */
+	time_t		mtime;		/* files last modification time */
 	struct ftm	*fow;
+	int		namelen;	/* file name length */
 } FTM;
 
 /*
@@ -145,12 +145,12 @@ typedef struct dlist {
  */
 
 typedef struct atdir {
-	char *name;	/* name of directory to reset */
-	dev_t dev;	/* dev and inode for fast lookup */
 	ino_t ino;
 	time_t mtime;	/* access and mod time to reset to */
 	time_t atime;
+	char *name;	/* name of directory to reset */
 	struct atdir *fow;
+	dev_t dev;	/* dev and inode for fast lookup */
 } ATDIR;
 
 /*
@@ -164,9 +164,9 @@ typedef struct atdir {
  */
 
 typedef struct dirdata {
-	char *name;	/* file name */
 	time_t mtime;	/* mtime to set */
 	time_t atime;	/* atime to set */
+	char *name;	/* file name */
 	u_int16_t mode;	/* file mode to restore */
 	u_int16_t frc_mode;	/* do we force mode settings? */
 } DIRDATA;
