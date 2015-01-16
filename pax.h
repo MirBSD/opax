@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/pax.h,v 1.12 2012/02/16 17:27:32 tg Exp $ */
-/*	$OpenBSD: pax.h,v 1.17 2005/11/09 19:59:06 otto Exp $	*/
+/*	$OpenBSD: pax.h,v 1.20 2015/01/16 06:39:32 deraadt Exp $	*/
 /*	$NetBSD: pax.h,v 1.3 1995/03/21 09:07:41 cgd Exp $	*/
 
 /*-
@@ -233,9 +233,7 @@ typedef struct oplist {
 /*
  * General Macros
  */
-#ifndef MIN
-#define MIN(a,b)	(((a)<(b))?(a):(b))
-#endif
+#define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
 #ifdef __INTERIX
 #include <sys/mkdev.h>
 #endif
