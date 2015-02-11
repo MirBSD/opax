@@ -1,4 +1,4 @@
-/*	$OpenBSD: tables.c,v 1.36 2014/07/14 06:00:22 guenther Exp $	*/
+/*	$OpenBSD: tables.c,v 1.40 2015/02/11 23:14:46 guenther Exp $	*/
 /*	$NetBSD: tables.c,v 1.4 1995/03/21 09:07:45 cgd Exp $	*/
 
 /*-
@@ -949,7 +949,7 @@ atdir_end(void)
 		 * not read by pax. Read time reset is controlled by -t.
 		 */
 		for (; pt != NULL; pt = pt->fow)
-			set_ftime(pt->name, pt->mtime, pt->atime, 1);
+			set_attr(&pt->ft, 1, 0, 0, 0);
 	}
 }
 
@@ -978,7 +978,7 @@ add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
 	indx = ((unsigned)ino) % A_TAB_SZ;
 	if ((pt = atab[indx]) != NULL) {
 		while (pt != NULL) {
-			if ((pt->ino == ino) && (pt->dev == dev))
+			if ((pt->ft.ft_ino == ino) && (pt->ft.ft_dev == dev))
 				break;
 			pt = pt->fow;
 		}
@@ -994,11 +994,11 @@ add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
 	 * add it to the front of the hash chain
 	 */
 	if ((pt = (ATDIR *)malloc(sizeof(ATDIR))) != NULL) {
-		if ((pt->name = strdup(fname)) != NULL) {
-			pt->dev = dev;
-			pt->ino = ino;
-			pt->mtime = mtime;
-			pt->atime = atime;
+		if ((pt->ft.name = strdup(fname)) != NULL) {
+			pt->ft.dev = dev;
+			pt->ft.ino = ino;
+			pt->ft.mtime = mtime;
+			pt->ft.atime = atime;
 			pt->fow = atab[indx];
 			atab[indx] = pt;
 			return;
@@ -1021,7 +1021,7 @@ add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
  */
 
 int
-get_atdir(dev_t dev, ino_t ino, time_t *mtime, time_t *atime)
+do_atdir(const char *name, dev_t dev, ino_t ino)
 {
 	ATDIR *pt;
 	ATDIR **ppt;
@@ -1038,7 +1038,7 @@ get_atdir(dev_t dev, ino_t ino, time_t *mtime, time_t *atime)
 
 	ppt = &(atab[indx]);
 	while (pt != NULL) {
-		if ((pt->ino == ino) && (pt->dev == dev))
+		if ((pt->ft.ft_ino == ino) && (pt->ft.ft_dev == dev))
 			break;
 		/*
 		 * no match, go to next one
@@ -1050,16 +1050,15 @@ get_atdir(dev_t dev, ino_t ino, time_t *mtime, time_t *atime)
 	/*
 	 * return if we did not find it.
 	 */
-	if (pt == NULL)
+	if (pt == NULL || strcmp(name, pt->ft.ft_name) == 0)
 		return(-1);
 
 	/*
-	 * found it. return the times and remove the entry from the table.
+	 * found it. set the times and remove the entry from the table.
 	 */
+	set_attr(&pt->ft, 1, 0, 0, 0);
 	*ppt = pt->fow;
-	*mtime = pt->mtime;
-	*atime = pt->atime;
-	free(pt->name);
+	free(pt->ft.ft_name);
 	free(pt);
 	return(0);
 }
@@ -1079,12 +1078,8 @@ get_atdir(dev_t dev, ino_t ino, time_t *mtime, time_t *atime)
  * times and file permissions specified by the archive are stored. After all
  * files have been extracted (or copied), these directories have their times
  * and file modes reset to the stored values. The directory info is restored in
- * reverse order as entries were added to the data file from root to leaf. To
- * restore atime properly, we must go backwards. The data file consists of
- * records with two parts, the file name followed by a DIRDATA trailer. The
- * fixed sized trailer contains the size of the name plus the off_t location in
- * the file. To restore we work backwards through the file reading the trailer
- * then the file name.
+ * reverse order as entries were added from root to leaf: to restore atime
+ * properly, we must go backwards.
  */
 
 /*
@@ -1161,7 +1156,7 @@ add_dir(char *name, struct stat *psb, int frc_mode)
 		dirsize *= 2;
 	}
 	dblk = &dirp[dircnt];
-	if ((dblk->name = strdup(name)) == NULL) {
+	if ((dblk->ft.ft_name = strdup(name)) == NULL) {
 		paxwarn(1, "Unable to store mode and times for created"
 		    " directory: %s", name);
 #if (_POSIX_VERSION >= 200809L)
@@ -1169,9 +1164,11 @@ add_dir(char *name, struct stat *psb, int frc_mode)
 #endif
 		return;
 	}
-	dblk->mode = psb->st_mode & 0xffff;
-	dblk->mtime = psb->st_mtime;
-	dblk->atime = psb->st_atime;
+	dblk->ft.ft_mtime = psb->st_mtime;
+	dblk->ft.ft_atime = psb->st_atime;
+	dblk->ft.ft_ino = psb->st_ino;
+	dblk->ft.ft_dev = psb->st_dev;
+	dblk->mode = psb->st_mode & ABITS;
 	dblk->frc_mode = frc_mode;
 	++dircnt;
 #if (_POSIX_VERSION >= 200809L)
@@ -1203,11 +1200,9 @@ proc_dir(void)
 		 * the user didn't ask for it (see file_subs.c for more info)
 		 */
 		dblk = &dirp[cnt];
-		if (pmode || dblk->frc_mode)
-			set_pmode(dblk->name, dblk->mode);
-		if (patime || pmtime)
-			set_ftime(dblk->name, dblk->mtime, dblk->atime, 0);
-		free(dblk->name);
+		set_attr(&dblk->ft, 0, dblk->mode, pmode || dblk->frc_mode,
+		    0 /*in_sig*/);
+		free(dblk->ft.ft_name);
 	}
 
 	free(dirp);

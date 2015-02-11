@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/extern.h,v 1.26 2015/10/14 18:10:08 tg Exp $ */
-/*	$OpenBSD: extern.h,v 1.42 2014/07/14 06:00:22 guenther Exp $	*/
+/*	$OpenBSD: extern.h,v 1.45 2015/02/11 23:14:46 guenther Exp $	*/
 /*	$NetBSD: extern.h,v 1.5 1996/03/26 23:54:16 mrg Exp $	*/
 
 /*-
@@ -169,6 +169,8 @@ int fset_ids(char *, int, uid_t, gid_t);
 int set_lids(char *, uid_t, gid_t);
 void set_pmode(char *, mode_t);
 void fset_pmode(char *, int, mode_t);
+int set_attr(const struct file_times *, int _force_times, mode_t, int _do_mode,
+    int _in_sig);
 int file_write(int, char *, int, int *, int *, int, char *);
 void file_flush(int, char *, int);
 void rdfile_close(ARCHD *, int *);
@@ -293,7 +295,7 @@ int map_dev(ARCHD *, u_long, u_long);
 int atdir_start(void);
 void atdir_end(void);
 void add_atdir(char *, dev_t, ino_t, time_t, time_t);
-int get_atdir(dev_t, ino_t, time_t *, time_t *);
+int do_atdir(const char *, dev_t, ino_t);
 int dir_start(void);
 void add_dir(char *, struct stat *, int);
 void proc_dir(void);
