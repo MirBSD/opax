@@ -633,6 +633,30 @@ mod_name(ARCHD *arcn)
 			paxwarn(0, "Removing leading / from absolute path names in the archive");
 		}
 	}
+	if (rmleadslash) {
+		const char *last = NULL;
+		const char *p = arcn->name;
+
+		while ((p = strstr(p, "..")) != NULL) {
+			if ((p == arcn->name || p[-1] == '/') &&
+			    (p[2] == '/' || p[2] == '\0'))
+				last = p + 2;
+			p += 2;
+		}
+		if (last != NULL) {
+			last++;
+			paxwarn(1, "Removing leading \"%.*s\"",
+			    (int)(last - arcn->name), arcn->name);
+			arcn->nlen = strlen(last);
+			if (arcn->nlen > 0)
+				memmove(arcn->name, last, arcn->nlen + 1);
+			else {
+				arcn->name[0] = '.';
+				arcn->name[1] = '\0';
+				arcn->nlen = 1;
+			}
+		}
+	}
 
 	/*
 	 * IMPORTANT: We have a problem. what do we do with symlinks?
