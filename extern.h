@@ -208,6 +208,7 @@ int pat_sel(ARCHD *);
 int pat_match(ARCHD *);
 int mod_name(ARCHD *);
 int set_dest(ARCHD *, char *, int);
+int has_dotdot(const char *);
 
 /*
  * pax.c
@@ -269,6 +270,10 @@ void purg_lnk(ARCHD *);
 void lnk_end(void);
 int ftime_start(void);
 int chk_ftime(ARCHD *);
+int sltab_start(void);
+int sltab_add_sym(const char *_path, const char *_value, mode_t _mode);
+int sltab_add_link(const char *, const struct stat *);
+void sltab_process(int _in_sig);
 int name_start(void);
 int add_name(char *, int, char *);
 void sub_name(char *, int *, size_t);
