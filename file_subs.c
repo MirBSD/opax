@@ -1,4 +1,4 @@
-/*	$OpenBSD: file_subs.c,v 1.41 2015/02/11 23:14:46 guenther Exp $	*/
+/*	$OpenBSD: file_subs.c,v 1.42 2015/02/12 23:44:57 guenther Exp $	*/
 /*	$NetBSD: file_subs.c,v 1.4 1995/03/21 09:07:18 cgd Exp $	*/
 
 /*-
@@ -209,6 +209,15 @@ lnk_creat(ARCHD *arcn, int *fdp)
 	}
 
 	rv = mk_link(arcn->ln_name, &sb, arcn->name, 0);
+	if (rv == 0) {
+		/* check for a hardlink to a placeholder symlink */
+		rv = sltab_add_link(arcn->name, &sb);
+
+		if (rv < 0) {
+			/* arrgh, it failed, clean up */
+			unlink(arcn->name);
+		}
+	}
 	if (fdp != NULL && rv == 0 && sb.st_size == 0 && arcn->skip > 0) {
 		/* request to write out file data late (broken archive) */
 		if (pmode)
@@ -434,7 +443,7 @@ node_creat(ARCHD *arcn)
 	struct stat sb;
 	char *target = NULL;
 	char *nm = arcn->name;
-	int len;
+	int len, defer_pmode = 0;
 
 	/*
 	 * create node based on type, if that fails try to unlink the node and
@@ -502,7 +511,21 @@ node_creat(ARCHD *arcn)
 			free(target);
 			return (-1);
 		case PAX_SLK:
-			res = symlink(arcn->ln_name, nm);
+			if (arcn->ln_name[0] != '/' &&
+			    !has_dotdot(arcn->ln_name))
+				res = symlink(arcn->ln_name, nm);
+			else {
+				/*
+				 * absolute symlinks and symlinks with ".."
+				 * have to be deferred to prevent the archive
+				 * from bootstrapping itself to outside the
+				 * working directory.
+				 */
+				res = sltab_add_sym(nm, arcn->ln_name,
+				    arcn->sb.st_mode);
+				if (res == 0)
+					defer_pmode = 1;
+			}
 			break;
 		case PAX_CTG:
 		case PAX_HLK:
@@ -569,7 +592,7 @@ node_creat(ARCHD *arcn)
 	 */
 	if (!pmode || res)
 		arcn->sb.st_mode &= ~(SETBITS);
-	if (pmode)
+	if (pmode && !defer_pmode)
 		set_pmode(nm, arcn->sb.st_mode);
 
 	if (arcn->type == PAX_DIR && strcmp(NM_CPIO, argv0) != 0) {
