@@ -53,6 +53,7 @@
 #define N_TAB_SZ	541		/* interactive rename hash table */
 #define D_TAB_SZ	317		/* unique device mapping table */
 #define A_TAB_SZ	317		/* ftree dir access time reset table */
+#define SL_TAB_SZ	317		/* escape symlink tables */
 #define MAXKEYLEN	64		/* max number of chars for hash */
 #define DIRP_SIZE	64		/* initial size of created dir table */
 

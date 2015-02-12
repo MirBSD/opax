@@ -586,6 +586,25 @@ range_match(char *pattern, int test)
 }
 
 /*
+ * has_dotdot()
+ *	Returns true iff the supplied path contains a ".." component.
+ */
+
+int
+has_dotdot(const char *path)
+{
+	const char *p = path;
+
+	while ((p = strstr(p, "..")) != NULL) {
+		if ((p == path || p[-1] == '/') &&
+		    (p[2] == '/' || p[2] == '\0'))
+			return (1);
+		p += 2;
+	}
+	return (0);
+}
+
+/*
  * mod_name()
  *	modify a selected file name. first attempt to apply replacement string
  *	expressions, then apply interactive file rename. We apply replacement
