@@ -352,6 +352,7 @@ mk_link(char *to, struct stat *to_sb, char *from, int ign)
 				syswarn(1, errno, "Unable to remove %s", from);
 				return(-1);
 			}
+			delete_dir(sb.st_dev, sb.st_ino);
 		} else if (unlink(from) < 0) {
 			if (!ign) {
 				syswarn(1, errno, "Unable to remove %s", from);
@@ -676,6 +677,7 @@ unlnk_exist(char *name, int type)
 			syswarn(1,errno,"Unable to remove directory %s", name);
 			return(-1);
 		}
+		delete_dir(sb.st_dev, sb.st_ino);
 		return(0);
 	}
 
