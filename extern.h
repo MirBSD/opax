@@ -286,6 +286,7 @@ void add_atdir(char *, dev_t, ino_t, time_t, time_t);
 int do_atdir(const char *, dev_t, ino_t);
 int dir_start(void);
 void add_dir(char *, struct stat *, int);
+void delete_dir(dev_t, ino_t);
 void proc_dir(void);
 u_int st_hash(char *, int, int);
 

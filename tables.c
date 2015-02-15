@@ -558,7 +558,13 @@ sltab_add_sym(const char *path0, const char *value0, mode_t mode)
 	}
 	close(fd);
 
-	if ((path = strdup(path0)) == NULL) {
+	if (havechd && *path0 != '/') {
+		if ((path = realpath(path0, NULL)) == NULL) {
+			syswarn(1, errno, "Cannot canonicalize %s", path0);
+			unlink(path0);
+			return (-1);
+		}
+	} else if ((path = strdup(path0)) == NULL) {
 		syswarn(1, errno, "defered symlink path");
 		unlink(path0);
 		return (-1);
@@ -642,7 +648,14 @@ sltab_add_link(const char *path, const struct stat *sb)
 			syswarn(1, errno, "deferred symlink hardlink");
 			return (-1);
 		}
-		if ((p->sp_path = strdup(path)) == NULL) {
+		if (havechd && *path != '/') {
+			if ((p->sp_path = realpath(path, NULL)) == NULL) {
+				syswarn(1, errno, "Cannot canonicalize %s",
+				    path);
+				free(p);
+				return (-1);
+			}
+		} else if ((p->sp_path = strdup(path)) == NULL) {
 			syswarn(1, errno, "defered symlink hardlink path");
 			free(p);
 			return (-1);
@@ -1365,7 +1378,8 @@ do_atdir(const char *name, dev_t dev, ino_t ino)
 	/*
 	 * return if we did not find it.
 	 */
-	if (pt == NULL || strcmp(name, pt->ft.ft_name) == 0)
+	if (pt == NULL || pt->ft.ft_name == NULL ||
+	    strcmp(name, pt->ft.ft_name) == 0)
 		return(-1);
 
 	/*
@@ -1474,6 +1488,35 @@ add_dir(char *name, struct stat *psb, int frc_mode)
 }
 
 /*
+ * delete_dir()
+ *	When we rmdir a directory, we may want to make sure we don't
+ *	later warn about being unable to set its mode and times.
+ */
+
+void
+delete_dir(dev_t dev, ino_t ino)
+{
+	DIRDATA *dblk;
+	char *name;
+	size_t i;
+
+	if (dirp == NULL)
+		return;
+	for (i = 0; i < dircnt; i++) {
+		dblk = &dirp[i];
+
+		if (dblk->ft.ft_name == NULL)
+			continue;
+		if (dblk->ft.ft_dev == dev && dblk->ft.ft_ino == ino) {
+			name = dblk->ft.ft_name;
+			dblk->ft.ft_name = NULL;
+			free(name);
+			break;
+		}
+	}
+}
+
+/*
  * proc_dir()
  *	process all file modes and times stored for directories CREATED
  *	by pax
@@ -1492,11 +1535,18 @@ proc_dir(void)
 	 */
 	cnt = dircnt;
 	while (--cnt >= 0) {
+		dblk = &dirp[cnt];
+		/*
+		 * If we remove a directory we created, we replace the
+		 * ft_name with NULL.  Ignore those.
+		 */
+		if (dblk->ft.ft_name == NULL)
+			continue;
+
 		/*
 		 * frc_mode set, make sure we set the file modes even if
 		 * the user didn't ask for it (see file_subs.c for more info)
 		 */
-		dblk = &dirp[cnt];
 		set_attr(&dblk->ft, 0, dblk->mode, pmode || dblk->frc_mode,
 		    /*in_sig*/ 0);
 		free(dblk->ft.ft_name);
