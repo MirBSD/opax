@@ -1,4 +1,4 @@
-/*	$OpenBSD: options.c,v 1.88 2015/03/15 19:47:27 guenther Exp $	*/
+/*	$OpenBSD: options.c,v 1.89 2015/03/15 21:53:09 guenther Exp $	*/
 /*	$NetBSD: options.c,v 1.6 1996/03/26 23:54:18 mrg Exp $	*/
 
 /*-
@@ -228,9 +228,10 @@ int anonarch = 0;
 int to_stdout = 0;
 
 /*
- * Do we have -C anywhere?
+ * Do we have -C anywhere and what is it?
  */
 int havechd = 0;
+char *chdname = NULL;
 
 /*
  * options()
