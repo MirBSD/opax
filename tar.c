@@ -1,4 +1,4 @@
-/*	$OpenBSD: tar.c,v 1.57 2015/03/15 19:47:27 guenther Exp $	*/
+/*	$OpenBSD: tar.c,v 1.58 2015/03/17 03:23:17 guenther Exp $	*/
 /*	$NetBSD: tar.c,v 1.5 1995/03/21 09:07:49 cgd Exp $	*/
 
 /*-
@@ -613,7 +613,7 @@ tar_wr(ARCHD *arcn)
 		    sizeof(arcn->ln_name));
 		if (ul_oct((u_long)0L, hd->size, sizeof(hd->size), 1))
 			goto out;
-	} else if ((arcn->type == PAX_HLK) || (arcn->type == PAX_HRG)) {
+	} else if (PAX_IS_HARDLINK(arcn->type)) {
 		/*
 		 * no data follows this file, so no pad
 		 */
@@ -656,7 +656,7 @@ tar_wr(ARCHD *arcn)
 		return(-1);
 	if (wr_skip((off_t)(BLKMULT - sizeof(HD_TAR))) < 0)
 		return(-1);
-	if ((arcn->type == PAX_CTG) || (arcn->type == PAX_REG))
+	if (PAX_IS_REG(arcn->type))
 		return(0);
 	return(1);
 
@@ -965,8 +965,7 @@ ustar_wr(ARCHD *arcn)
 	/*
 	 * check the length of the linkname
 	 */
-	if (((arcn->type == PAX_SLK) || (arcn->type == PAX_HLK) ||
-	    (arcn->type == PAX_HRG)) &&
+	if (PAX_IS_LINK(arcn->type) &&
 	    ((size_t)arcn->ln_nlen > sizeof(hd->linkname))) {
 		paxwarn(1, "Link name too long for ustar %s", arcn->ln_name);
 		return(1);
@@ -1160,7 +1159,7 @@ ustar_wr(ARCHD *arcn)
 		return(-1);
 	if (wr_skip((off_t)(BLKMULT - sizeof(HD_USTAR))) < 0)
 		return(-1);
-	if ((arcn->type == PAX_CTG) || (arcn->type == PAX_REG))
+	if (PAX_IS_REG(arcn->type))
 		return(0);
 	return(1);
 

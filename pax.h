@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/pax.h,v 1.12 2012/02/16 17:27:32 tg Exp $ */
-/*	$OpenBSD: pax.h,v 1.25 2015/03/09 04:23:29 guenther Exp $	*/
+/*	$OpenBSD: pax.h,v 1.26 2015/03/17 03:23:17 guenther Exp $	*/
 /*	$NetBSD: pax.h,v 1.3 1995/03/21 09:07:41 cgd Exp $	*/
 
 /*-
@@ -130,6 +130,10 @@ typedef struct {
 #define PAX_GLF		12		/* GNU long file */
 #define PAX_LINKOR	0x80000000	/* hard link detection OR */
 } ARCHD;
+
+#define PAX_IS_REG(type)	((type) == PAX_REG || (type) == PAX_CTG)
+#define PAX_IS_HARDLINK(type)	((type) == PAX_HLK || (type) == PAX_HRG)
+#define PAX_IS_LINK(type)	((type) == PAX_SLK || PAX_IS_HARDLINK(type))
 
 /*
  * Format Specific Routine Table
