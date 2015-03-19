@@ -1,4 +1,4 @@
-/*	$OpenBSD: cpio.c,v 1.26 2015/03/17 03:23:17 guenther Exp $	*/
+/*	$OpenBSD: cpio.c,v 1.27 2015/03/19 05:14:24 guenther Exp $	*/
 /*	$NetBSD: cpio.c,v 1.5 1995/03/21 09:07:13 cgd Exp $	*/
 
 /*-

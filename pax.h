@@ -225,11 +225,11 @@ typedef struct {
  * at the given name has the indicated dev+ino.
  */
 struct file_times {
-	ino_t	ft_ino;		/* inode number to verify */
-	time_t	ft_mtime;	/* times to set */
+	ino_t	ft_ino;			/* inode number to verify */
+	time_t	ft_mtime;		/* times to set */
 	time_t	ft_atime;
-	char	*ft_name;	/* name of file to set the times on */
-	dev_t	ft_dev;		/* device number to verify */
+	char	*ft_name;		/* name of file to set the times on */
+	dev_t	ft_dev;			/* device number to verify */
 };
 
 /*

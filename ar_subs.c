@@ -1,4 +1,4 @@
-/*	$OpenBSD: ar_subs.c,v 1.44 2015/03/17 03:23:17 guenther Exp $	*/
+/*	$OpenBSD: ar_subs.c,v 1.45 2015/03/19 05:14:24 guenther Exp $	*/
 /*	$NetBSD: ar_subs.c,v 1.5 1995/03/21 09:07:06 cgd Exp $	*/
 
 /*-

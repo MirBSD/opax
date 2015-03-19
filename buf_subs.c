@@ -1,4 +1,4 @@
-/*	$OpenBSD: buf_subs.c,v 1.26 2015/01/16 06:39:32 deraadt Exp $	*/
+/*	$OpenBSD: buf_subs.c,v 1.27 2015/03/19 05:14:24 guenther Exp $	*/
 /*	$NetBSD: buf_subs.c,v 1.5 1995/03/21 09:07:08 cgd Exp $	*/
 
 /*-
