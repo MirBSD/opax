@@ -1,4 +1,4 @@
-/*	$OpenBSD: ar_io.c,v 1.49 2015/03/09 04:25:28 guenther Exp $	*/
+/*	$OpenBSD: ar_io.c,v 1.50 2015/03/22 03:15:00 guenther Exp $	*/
 /*	$NetBSD: ar_io.c,v 1.5 1996/03/26 23:54:13 mrg Exp $	*/
 
 /*-
@@ -416,7 +416,7 @@ ar_close(void)
 		return;
 	}
 
-	if (strcmp(NM_TAR, argv0) != 0)
+	if (strcmp(NM_PAX, argv0) == 0)
 		(void)fprintf(listf,
 		    "%s: %s vol %d, %lu files, %" OT_FMT " bytes read, %"
 		    OT_FMT " bytes written.\n", argv0, frmt->name, arvol-1,
