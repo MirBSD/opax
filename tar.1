@@ -1,5 +1,5 @@
 .\"	$MirOS: src/bin/pax/tar.1,v 1.28 2016/02/11 20:12:10 tg Exp $
-.\"	$OpenBSD: tar.1,v 1.56 2014/09/08 01:27:54 schwarze Exp $
+.\"	$OpenBSD: tar.1,v 1.58 2015/05/18 20:26:16 czarkoff Exp $
 .\"
 .\" Copyright (c) 2005, 2008, 2009, 2011, 2012, 2014, 2016
 .\"	mirabilos <m@mirbsd.org>
@@ -321,6 +321,12 @@ Stop after the first error.
 Filename where the archive is stored.
 Defaults to
 .Pa /dev/rst0 .
+If set to hyphen
+.Pq Sq -
+standard output is used.
+See also the
+.Ev TAPE
+environment variable.
 .It Fl H
 Follow symlinks given on the command line only.
 .It Fl h
@@ -533,6 +539,9 @@ Path in which to store temporary files.
 .It Ev TAPE
 Default tape device to use instead of
 .Pa /dev/rst0 .
+If set to hyphen
+.Pq Sq -
+standard output is used.
 .El
 .Sh FILES
 .Bl -tag -width "/dev/rst0"

@@ -1,4 +1,4 @@
-/*	$OpenBSD: options.c,v 1.89 2015/03/15 21:53:09 guenther Exp $	*/
+/*	$OpenBSD: options.c,v 1.91 2015/05/18 20:26:16 czarkoff Exp $	*/
 /*	$NetBSD: options.c,v 1.6 1996/03/26 23:54:18 mrg Exp $	*/
 
 /*-
@@ -982,6 +982,16 @@ tar_options(int argc, char **argv)
 	if (act == ERROR)
 		tar_usage();
 
+	if (!fstdin && ((arcname == NULL) || (*arcname == '\0'))) {
+		arcname = getenv("TAPE");
+		if ((arcname == NULL) || (*arcname == '\0'))
+			arcname = _PATH_DEFTAPE;
+		else if ((arcname[0] == '-') && (arcname[1]== '\0')) {
+			arcname = NULL;
+			fstdin = 1;
+		}
+	}
+
 	/* traditional tar behaviour (pax uses stderr unless in list mode) */
 	if (fstdin == 1 && act == ARCHIVE)
 		listf = stderr;
@@ -1163,11 +1173,6 @@ tar_options(int argc, char **argv)
 	}
 	if (to_stdout != 1)
 		to_stdout = 0;
-	if (!fstdin && ((arcname == NULL) || (*arcname == '\0'))) {
-		arcname = getenv("TAPE");
-		if ((arcname == NULL) || (*arcname == '\0'))
-			arcname = _PATH_DEFTAPE;
-	}
 }
 
 int
