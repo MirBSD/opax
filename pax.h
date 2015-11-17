@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/pax.h,v 1.12 2012/02/16 17:27:32 tg Exp $ */
-/*	$OpenBSD: pax.h,v 1.26 2015/03/17 03:23:17 guenther Exp $	*/
+/*	$OpenBSD: pax.h,v 1.28 2015/11/17 19:01:34 mmcc Exp $	*/
 /*	$NetBSD: pax.h,v 1.3 1995/03/21 09:07:41 cgd Exp $	*/
 
 /*-
@@ -82,7 +82,7 @@ typedef struct pattern {
 	char		*pstr;		/* pattern to match, user supplied */
 	char		*pend;		/* end of a prefix match */
 	char		*chdname;	/* the dir to change to if not NULL.  */
-	int		plen;		/* length of pstr */
+	size_t		plen;		/* length of pstr */
 	int		flgs;		/* processing/state flags */
 #define MTCH		0x1		/* pattern has been matched */
 #define DIR_MTCH	0x2		/* pattern matched a directory */
