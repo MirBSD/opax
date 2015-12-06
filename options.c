@@ -1,4 +1,4 @@
-/*	$OpenBSD: options.c,v 1.91 2015/05/18 20:26:16 czarkoff Exp $	*/
+/*	$OpenBSD: options.c,v 1.92 2015/12/06 12:00:16 tobias Exp $	*/
 /*	$NetBSD: options.c,v 1.6 1996/03/26 23:54:18 mrg Exp $	*/
 
 /*-
