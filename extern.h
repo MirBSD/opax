@@ -1,4 +1,4 @@
-/*	$OpenBSD: extern.h,v 1.52 2015/03/15 21:53:09 guenther Exp $	*/
+/*	$OpenBSD: extern.h,v 1.54 2016/01/01 15:56:03 tedu Exp $	*/
 /*	$NetBSD: extern.h,v 1.5 1996/03/26 23:54:16 mrg Exp $	*/
 
 /*-
@@ -244,7 +244,6 @@ extern char *tempfile;
 extern char *tempbase;
 extern int havechd;
 
-int main(int, char **);
 void sig_cleanup(int);
 
 /*
