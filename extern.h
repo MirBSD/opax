@@ -195,8 +195,8 @@ u_long asc_ul(char *, int, int);
 int ul_asc(u_long, char *, int, int);
 ot_type asc_ot(char *, int, int);
 int ot_asc(ot_type, char *, int, int);
-u_quad_t asc_uqd(char *, int, int);
-int uqd_asc(u_quad_t, char *, int, int);
+uint64_t asc_uqd(char *, int, int);
+int uqd_asc(uint64_t, char *, int, int);
 size_t fieldcpy(char *, size_t, const char *, size_t);
 
 /*

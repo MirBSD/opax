@@ -63,7 +63,7 @@ static u_long tar_chksm(char *, int);
 static char *name_split(char *, int);
 static int ul_oct(u_long, char *, int, int);
 static int ot_oct(ot_type, char *, int, int);
-static int uqd_oct(u_quad_t, char *, int, int);
+static int uqd_oct(uint64_t, char *, int, int);
 
 static void tar_dbgfld(const char *, const char *, size_t);
 
@@ -389,7 +389,7 @@ int
 tar_rd(ARCHD *arcn, char *buf)
 {
 	HD_TAR *hd;
-	u_quad_t val;
+	uint64_t val;
 	char *pt;
 
 	/*
@@ -749,7 +749,7 @@ ustar_rd(ARCHD *arcn, char *buf)
 	int cnt = 0;
 	dev_t devmajor;
 	dev_t devminor;
-	u_quad_t val;
+	uint64_t val;
 
 	/*
 	 * we only get proper sized buffers
@@ -937,7 +937,7 @@ ustar_wr(ARCHD *arcn)
 	char hdblk[sizeof(HD_USTAR)];
 
 	u_long t_uid, t_gid;
-	u_quad_t t_mtime;
+	uint64_t t_mtime;
 
 	anonarch_init();
 
@@ -1010,7 +1010,7 @@ ustar_wr(ARCHD *arcn)
 	if (anonarch & ANON_MTIME)
 		t_mtime = 0;
 	else
-		t_mtime = (u_quad_t)arcn->sb.st_mtime;
+		t_mtime = (uint64_t)arcn->sb.st_mtime;
 
 	/*
 	 * set the fields in the header that are type dependent

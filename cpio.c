@@ -278,7 +278,7 @@ int
 cpio_rd(ARCHD *arcn, char *buf)
 {
 	int nsz;
-	u_quad_t val;
+	uint64_t val;
 	HD_CPIO *hd;
 
 	/*
@@ -395,7 +395,7 @@ cpio_wr(ARCHD *arcn)
 	char hdblk[sizeof(HD_CPIO)];
 
 	u_long t_uid, t_gid, t_dev;
-	u_quad_t t_mtime;
+	uint64_t t_mtime;
 	ino_t t_ino;
 
 	anonarch_init();
