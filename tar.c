@@ -785,7 +785,7 @@ ustar_rd(ARCHD *arcn, char *buf)
 		}
 	}
 
-	if (!arcn->ln_nlen && 
+	if (!arcn->ln_nlen &&
 	    hd->typeflag != LONGLINKTYPE && hd->typeflag != LONGNAMETYPE) {
 		arcn->ln_nlen = expandname(arcn->ln_name, sizeof(arcn->ln_name),
 		    &gnu_link_string, hd->linkname, sizeof(hd->linkname));
