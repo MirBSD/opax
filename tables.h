@@ -1,4 +1,4 @@
-/*	$OpenBSD: tables.h,v 1.13 2015/02/12 23:44:57 guenther Exp $	*/
+/*	$OpenBSD: tables.h,v 1.15 2015/03/09 04:23:29 guenther Exp $	*/
 /*	$NetBSD: tables.h,v 1.3 1995/03/21 09:07:47 cgd Exp $	*/
 
 /*-

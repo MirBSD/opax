@@ -1,4 +1,4 @@
-/*	$OpenBSD: pat_rep.c,v 1.36 2015/02/12 23:44:57 guenther Exp $	*/
+/*	$OpenBSD: pat_rep.c,v 1.38 2015/03/09 04:23:29 guenther Exp $	*/
 /*	$NetBSD: pat_rep.c,v 1.4 1995/03/21 09:07:33 cgd Exp $	*/
 
 /*-
