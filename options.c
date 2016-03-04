@@ -1376,6 +1376,10 @@ cpio_options(int argc, char **argv)
 			 * set block size in bytes
 			 */
 			wrblksz = atoi(optarg);
+			if (wrblksz <= 0) {
+				paxwarn(1, "Invalid block size %s", optarg);
+				pax_usage();
+			}
 			break;
 		case 'E':
 			/*
