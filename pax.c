@@ -2,7 +2,7 @@
 /*	$NetBSD: pax.c,v 1.5 1996/03/26 23:54:20 mrg Exp $	*/
 
 /*-
- * Copyright (c) 2012, 2015
+ * Copyright (c) 2012, 2015, 2016
  *	mirabilos <m@mirbsd.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993

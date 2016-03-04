@@ -3,7 +3,7 @@
 
 /*-
  * Copyright (c) 2007, 2008, 2009, 2012, 2014
- *	Thorsten Glaser <tg@mirbsd.org>
+ *	mirabilos <m@mirbsd.org>
  * Copyright (c) 2011
  *	Svante Signell <svante.signell@telia.com>
  * Copyright (c) 1992 Keith Muller.

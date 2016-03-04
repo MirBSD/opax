@@ -3,7 +3,8 @@
 /*	$NetBSD: tables.h,v 1.3 1995/03/21 09:07:47 cgd Exp $	*/
 
 /*-
- * Copyright (c) 2005 Thorsten Glaser <tg@mirbsd.org>
+ * Copyright (c) 2005
+ *	mirabilos <m@mirbsd.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.

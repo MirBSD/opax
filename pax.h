@@ -4,7 +4,7 @@
 
 /*-
  * Copyright (c) 2011, 2012
- *	Thorsten Glaser <tg@debian.org>
+ *	mirabilos <m@mirbsd.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
