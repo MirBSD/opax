@@ -2,7 +2,7 @@
 /*	$NetBSD: gen_subs.c,v 1.5 1995/03/21 09:07:26 cgd Exp $	*/
 
 /*-
- * Copyright (c) 2012, 2015
+ * Copyright (c) 2012, 2015, 2016
  *	mirabilos <m@mirbsd.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
@@ -412,4 +412,8 @@ fieldcpy(char *buf, size_t bufsz, const char *field, size_t fieldsz)
 #define L_strlcat
 #define L_strlcpy
 #include ".linked/strlfun.inc"
+#endif
+
+#ifndef HAVE_REALLOCARRAY
+#include ".linked/reallocarray.inc"
 #endif

@@ -359,3 +359,7 @@ size_t strlcpy(char *, const char *, size_t);
 #ifndef HAVE_STRMODE
 void strmode(mode_t, char *);
 #endif
+
+#ifndef HAVE_REALLOCARRAY
+void *reallocarray(void *, size_t, size_t);
+#endif
