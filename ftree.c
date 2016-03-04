@@ -1,4 +1,4 @@
-/*	$OpenBSD: ftree.c,v 1.35 2015/02/11 23:14:46 guenther Exp $	*/
+/*	$OpenBSD: ftree.c,v 1.37 2015/03/09 04:23:29 guenther Exp $	*/
 /*	$NetBSD: ftree.c,v 1.4 1995/03/21 09:07:21 cgd Exp $	*/
 
 /*-

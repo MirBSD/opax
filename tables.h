@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/tables.h,v 1.4 2008/11/08 23:03:39 tg Exp $ */
-/*	$OpenBSD: tables.h,v 1.13 2015/02/12 23:44:57 guenther Exp $	*/
+/*	$OpenBSD: tables.h,v 1.15 2015/03/09 04:23:29 guenther Exp $	*/
 /*	$NetBSD: tables.h,v 1.3 1995/03/21 09:07:47 cgd Exp $	*/
 
 /*-

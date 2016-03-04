@@ -1,5 +1,5 @@
 /**	$MirOS: src/bin/pax/pax.h,v 1.12 2012/02/16 17:27:32 tg Exp $ */
-/*	$OpenBSD: pax.h,v 1.23 2015/02/11 23:14:46 guenther Exp $	*/
+/*	$OpenBSD: pax.h,v 1.25 2015/03/09 04:23:29 guenther Exp $	*/
 /*	$NetBSD: pax.h,v 1.3 1995/03/21 09:07:41 cgd Exp $	*/
 
 /*-
