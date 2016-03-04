@@ -2,6 +2,8 @@
 /*	$NetBSD: pax.c,v 1.5 1996/03/26 23:54:20 mrg Exp $	*/
 
 /*-
+ * Copyright (c) 2012, 2015
+ *	mirabilos <m@mirbsd.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,23 +36,27 @@
  * SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <signal.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <time.h>
 #include "pax.h"
 #include "extern.h"
+
+__RCSID("$MirOS: src/bin/pax/pax.c,v 1.21 2015/10/14 18:10:08 tg Exp $");
+
 static int gen_init(void);
+static void sig_cleanup(int) __attribute__((__noreturn__));
 
 /*
  * PAX main routines, general globals and some simple start up routines
@@ -59,7 +65,7 @@ static int gen_init(void);
 /*
  * Variables that can be accessed by any routine within pax
  */
-int	act = DEFOP;		/* read/write/append/copy */
+int	act = ERROR;		/* read/write/append/copy */
 FSUB	*frmt = NULL;		/* archive format type */
 int	cflag;			/* match all EXCEPT pattern/file */
 int	cwdfd;			/* starting cwd */
@@ -70,16 +76,16 @@ int	lflag;			/* use hard links when possible */
 int	nflag;			/* select first archive member match */
 int	tflag;			/* restore access time after read */
 int	uflag;			/* ignore older modification time files */
+int	Vflag = 0;		/* print a dot for each file processed */
 int	vflag;			/* produce verbose output */
 int	Dflag;			/* same as uflag except inode change time */
 int	Hflag;			/* follow command line symlinks (write only) */
 int	Lflag;			/* follow symlinks when writing */
-int	Nflag;			/* only use numeric uid and gid */
 int	Xflag;			/* archive files with same device id only */
 int	Yflag;			/* same as Dflag except after name mode */
 int	Zflag;			/* same as uflag except after name mode */
 int	zeroflag;		/* use \0 as pathname terminator */
-int	vfpart;			/* is partial verbose output in progress */
+int	vfpart = 0;		/* is partial verbose output in progress */
 int	patime = 1;		/* preserve file access time */
 int	pmtime = 1;		/* preserve file modification times */
 int	nodirs;			/* do not create directories as needed */
@@ -89,10 +95,9 @@ int	rmleadslash = 0;	/* remove leading '/' from pathnames */
 int	exit_val;		/* exit value */
 int	docrc;			/* check/create file crc */
 char	*dirptr;		/* destination dir in a copy */
-char	*ltmfrmt;		/* -v locale time format (if any) */
-char	*argv0;			/* root of argv[0] */
+const char *argv0;		/* root of argv[0] */
 sigset_t s_mask;		/* signal mask for cleanup critical sect */
-FILE	*listf = stderr;	/* file pointer to print file list to */
+FILE	*listf;			/* fp to print file list to (default stderr) */
 char	*tempfile;		/* tempfile to use for mkstemp(3) */
 char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
 
@@ -219,8 +224,11 @@ char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
 int
 main(int argc, char **argv)
 {
-	char *tmpdir;
+	const char *tmpdir;
 	size_t tdlen;
+
+	/* may not be a constant, thus initialising early */
+	listf = stderr;
 
 	/*
 	 * Keep a reference to cwd, so we can always come back home.
@@ -256,6 +264,13 @@ main(int argc, char **argv)
 	if ((gen_init() < 0) || (tty_init() < 0))
 		return(exit_val);
 
+	/* make list fd independent and line-buffered */
+	if (!(listf = fdopen(dup(fileno(listf)), "wb"))) {
+		syswarn(1, errno, "Can't open list file descriptor");
+		return (exit_val);
+	}
+	setlinebuf(listf);
+
 	/*
 	 * select a primary operation mode
 	 */
@@ -267,14 +282,16 @@ main(int argc, char **argv)
 		archive();
 		break;
 	case APPND:
-		if (gzip_program != NULL)
-			errx(1, "can not gzip while appending");
+		if (compress_program != NULL)
+			errx(1, "cannot compress while appending");
 		append();
 		break;
 	case COPY:
 		copy();
 		break;
 	default:
+		/* for ar_io.c etc. */
+		act = LIST;
 	case LIST:
 		list();
 		break;
@@ -291,10 +308,17 @@ main(int argc, char **argv)
  *	never....
  */
 
-void
+static void
 sig_cleanup(int which_sig)
 {
-	char errbuf[80];
+	/*
+	 * The definition of this array doubles as compile-time assert
+	 * on the size of long, off_t, and whether LONG_OFF_T is used,
+	 * or not, correctly; target size is 80, error size -1.
+	 */
+	char errbuf[((sizeof(long) >= 4) &&
+	    (sizeof(ot_type) >= 4) &&
+	    (sizeof(ot_type) == sizeof(off_t))) ? 80 : -1];
 
 	/*
 	 * restore modes and times for any dirs we may have created
@@ -310,7 +334,10 @@ sig_cleanup(int which_sig)
 	else
 		strlcpy(errbuf, "Signal caught, cleaning up.\n",
 		    sizeof errbuf);
-	(void) write(STDERR_FILENO, errbuf, strlen(errbuf));
+	if (!write(STDERR_FILENO, errbuf, strlen(errbuf))) {
+		/* dummy, to keep fortified gcc quiet */
+		errbuf[0] = '\0';
+	}
 
 	ar_close();			/* XXX signal race */
 	proc_dir();			/* XXX signal race */
@@ -361,22 +388,17 @@ gen_init(void)
 	/*
 	 * not really needed, but doesn't hurt
 	 */
+#ifdef RLIMIT_RSS
 	if (getrlimit(RLIMIT_RSS , &reslimit) == 0){
 		reslimit.rlim_cur = reslimit.rlim_max;
 		(void)setrlimit(RLIMIT_RSS , &reslimit);
 	}
-
-	/*
-	 * Handle posix locale
-	 *
-	 * set user defines time printing format for -v option
-	 */
-	ltmfrmt = getenv("LC_TIME");
+#endif
 
 	/*
 	 * signal handling to reset stored directory times and modes. Since
 	 * we deal with broken pipes via failed writes we ignore it. We also
-	 * deal with any file size limit through failed writes. Cpu time
+	 * deal with any file size limit through failed writes. CPU time
 	 * limits are caught and a cleanup is forced.
 	 */
 	if ((sigemptyset(&s_mask) < 0) || (sigaddset(&s_mask, SIGTERM) < 0) ||
@@ -391,29 +413,29 @@ gen_init(void)
 	n_hand.sa_flags = 0;
 	n_hand.sa_handler = sig_cleanup;
 
-	if ((sigaction(SIGHUP, &n_hand, &o_hand) < 0) ||
+	if ((sigaction(SIGHUP, &n_hand, &o_hand) < 0) || (
 	    (o_hand.sa_handler == SIG_IGN) &&
-	    (sigaction(SIGHUP, &o_hand, &o_hand) < 0))
+	    (sigaction(SIGHUP, &o_hand, &o_hand) < 0)))
 		goto out;
 
-	if ((sigaction(SIGTERM, &n_hand, &o_hand) < 0) ||
+	if ((sigaction(SIGTERM, &n_hand, &o_hand) < 0) || (
 	    (o_hand.sa_handler == SIG_IGN) &&
-	    (sigaction(SIGTERM, &o_hand, &o_hand) < 0))
+	    (sigaction(SIGTERM, &o_hand, &o_hand) < 0)))
 		goto out;
 
-	if ((sigaction(SIGINT, &n_hand, &o_hand) < 0) ||
+	if ((sigaction(SIGINT, &n_hand, &o_hand) < 0) || (
 	    (o_hand.sa_handler == SIG_IGN) &&
-	    (sigaction(SIGINT, &o_hand, &o_hand) < 0))
+	    (sigaction(SIGINT, &o_hand, &o_hand) < 0)))
 		goto out;
 
-	if ((sigaction(SIGQUIT, &n_hand, &o_hand) < 0) ||
+	if ((sigaction(SIGQUIT, &n_hand, &o_hand) < 0) || (
 	    (o_hand.sa_handler == SIG_IGN) &&
-	    (sigaction(SIGQUIT, &o_hand, &o_hand) < 0))
+	    (sigaction(SIGQUIT, &o_hand, &o_hand) < 0)))
 		goto out;
 
-	if ((sigaction(SIGXCPU, &n_hand, &o_hand) < 0) ||
+	if ((sigaction(SIGXCPU, &n_hand, &o_hand) < 0) || (
 	    (o_hand.sa_handler == SIG_IGN) &&
-	    (sigaction(SIGXCPU, &o_hand, &o_hand) < 0))
+	    (sigaction(SIGXCPU, &o_hand, &o_hand) < 0)))
 		goto out;
 
 	n_hand.sa_handler = SIG_IGN;
@@ -422,7 +444,7 @@ gen_init(void)
 		goto out;
 	return(0);
 
-    out:
+ out:
 	syswarn(1, errno, "Unable to set up signal handler");
 	return(-1);
 }

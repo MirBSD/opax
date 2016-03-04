@@ -2,6 +2,8 @@
 /*	$NetBSD: ar_subs.c,v 1.5 1995/03/21 09:07:06 cgd Exp $	*/
 
 /*-
+ * Copyright (c) 2008, 2011, 2012
+ *	Thorsten Glaser <tg@mirbsd.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,10 +36,9 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
@@ -45,8 +46,12 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
 #include "pax.h"
 #include "extern.h"
+#include "options.h"
+
+__RCSID("$MirOS: src/bin/pax/ar_subs.c,v 1.14 2012/06/05 18:22:55 tg Exp $");
 
 static void wr_archive(ARCHD *, int is_app);
 static int get_arc(void);
@@ -60,6 +65,7 @@ extern sigset_t s_mask;
 
 static char hdbuf[BLKMULT];		/* space for archive header on read */
 u_long flcnt;				/* number of files processed */
+int ar_do_keepopen = 0;			/* see append() below */
 
 /*
  * list()
@@ -287,13 +293,17 @@ extract(void)
 				(void)safe_print(arcn->name, listf);
 				vfpart = 1;
 			}
+		} else if (Vflag) {
+			(void)putc('.', listf);
+			(void)fflush(listf);
+			vfpart = 1;
 		}
 
 		/*
 		 * if required, chdir around.
 		 */
 		if ((arcn->pat != NULL) && (arcn->pat->chdname != NULL))
-			if (chdir(arcn->pat->chdname) != 0)
+			if (!to_stdout && chdir(arcn->pat->chdname) != 0)
 				syswarn(1, errno, "Cannot chdir to %s",
 				    arcn->pat->chdname);
 
@@ -306,10 +316,14 @@ extract(void)
 			 * throw out padding and any data that might follow the
 			 * header (as determined by the format).
 			 */
-			if ((arcn->type == PAX_HLK) || (arcn->type == PAX_HRG))
-				res = lnk_creat(arcn);
-			else
-				res = node_creat(arcn);
+			if (!to_stdout) {
+				if ((arcn->type == PAX_HLK) || (arcn->type == PAX_HRG)) {
+					res = lnk_creat(arcn, &fd);
+					if (fd != -1)
+						goto extdata;
+				} else
+					res = node_creat(arcn);
+			}
 
 			(void)rd_skip(arcn->skip + arcn->pad);
 			if (res < 0)
@@ -322,10 +336,12 @@ extract(void)
 			goto popd;
 		}
 		/*
-		 * we have a file with data here. If we can not create it, skip
+		 * we have a file with data here. If we cannot create it, skip
 		 * over the data and purge the name from hard link table
 		 */
-		if ((fd = file_creat(arcn)) < 0) {
+		if (to_stdout)
+			fd = STDOUT_FILENO;
+		else if ((fd = file_creat(arcn)) < 0) {
 			(void)rd_skip(arcn->skip + arcn->pad);
 			purg_lnk(arcn);
 			goto popd;
@@ -334,8 +350,10 @@ extract(void)
 		 * extract the file from the archive and skip over padding and
 		 * any unprocessed data
 		 */
+ extdata:
 		res = (*frmt->rd_data)(arcn, fd, &cnt);
-		file_close(arcn, fd);
+		if (fd != STDOUT_FILENO)
+			file_close(arcn, fd);
 		if (vflag && vfpart) {
 			(void)putc('\n', listf);
 			vfpart = 0;
@@ -343,12 +361,12 @@ extract(void)
 		if (!res)
 			(void)rd_skip(cnt + arcn->pad);
 
-popd:
+ popd:
 		/*
 		 * if required, chdir around.
 		 */
 		if ((arcn->pat != NULL) && (arcn->pat->chdname != NULL))
-			if (fchdir(cwdfd) != 0)
+			if (!to_stdout && fchdir(cwdfd) != 0)
 				syswarn(1, errno,
 				    "Can't fchdir to starting directory");
 	}
@@ -390,7 +408,7 @@ wr_archive(ARCHD *arcn, int is_app)
 		return;
 
 	/*
-	 * if this is not append, and there are no files, we do not write a 
+	 * if this is not append, and there are no files, we do not write a
 	 * trailer
 	 */
 	wr_one = is_app;
@@ -402,7 +420,7 @@ wr_archive(ARCHD *arcn, int is_app)
 		if (is_app)
 			goto trailer;
 		return;
-	} else if (((*frmt->st_wr)() < 0))
+	} else if (((*frmt->st_wr)(is_app) < 0))
 		return;
 
 	wrf = frmt->wr;
@@ -434,7 +452,7 @@ wr_archive(ARCHD *arcn, int is_app)
 			if ((res = chk_ftime(arcn)) < 0)
 				break;
 			if (res > 0) {
-				ftree_skipped_newer(arcn);
+				ftree_skipped_newer();
 				continue;
 			}
 		}
@@ -493,6 +511,10 @@ wr_archive(ARCHD *arcn, int is_app)
 				(void)safe_print(arcn->name, listf);
 				vfpart = 1;
 			}
+		} else if (Vflag) {
+			(void)putc('.', listf);
+			(void)fflush(listf);
+			vfpart = 1;
 		}
 		++flcnt;
 
@@ -543,7 +565,7 @@ wr_archive(ARCHD *arcn, int is_app)
 			break;
 	}
 
-trailer:
+ trailer:
 	/*
 	 * tell format to write trailer; pad to block boundary; reset directory
 	 * mode/access times, and check if all patterns supplied by the user
@@ -613,6 +635,10 @@ append(void)
 	 */
 	if (((*frmt->options)() < 0) || ((*frmt->st_rd)() < 0))
 		return;
+
+	/* hack to allow appending to Unix Archiver libraries */
+	if (frmt->is_uar)
+		ar_do_keepopen = 1;
 
 	/*
 	 * if we only are adding members that are newer, we need to save the
@@ -752,8 +778,8 @@ copy(void)
 	int res;
 	int fddest;
 	char *dest_pt;
-	int dlen;
-	int drem;
+	size_t dlen;
+	size_t drem;
 	int fdsrc = -1;
 	struct stat sb;
 	ARCHD archd;
@@ -847,7 +873,7 @@ copy(void)
 			*dest_pt = '\0';
 
 			if (res == 0) {
-				ftree_skipped_newer(arcn);
+				ftree_skipped_newer();
 				if (uflag && Dflag) {
 					if ((arcn->sb.st_mtime<=sb.st_mtime) &&
 					    (arcn->sb.st_ctime<=sb.st_ctime))
@@ -895,6 +921,10 @@ copy(void)
 		if (vflag) {
 			(void)safe_print(arcn->name, listf);
 			vfpart = 1;
+		} else if (Vflag) {
+			(void)putc('.', listf);
+			(void)fflush(listf);
+			vfpart = 1;
 		}
 		++flcnt;
 
@@ -922,7 +952,7 @@ copy(void)
 			 * create a link or special file
 			 */
 			if ((arcn->type == PAX_HLK) || (arcn->type == PAX_HRG))
-				res = lnk_creat(arcn);
+				res = lnk_creat(arcn, NULL);
 			else
 				res = node_creat(arcn);
 			if (res < 0)
@@ -1036,7 +1066,8 @@ next_head(ARCHD *arcn)
 			 * some kind of archive read problem, try to resync the
 			 * storage device, better give the user the bad news.
 			 */
-			if ((ret == 0) || (rd_sync() < 0)) {
+			if ((ret == 0) || (rd_sync() < 0) || frmt->is_uar) {
+ no_header:
 				paxwarn(1,"Premature end of file on archive read");
 				return(-1);
 			}
@@ -1071,6 +1102,9 @@ next_head(ARCHD *arcn)
 		 */
 		if ((*frmt->rd)(arcn, hdbuf) == 0)
 			break;
+
+		if (frmt->is_uar)
+			goto no_header;
 
 		if (!frmt->inhead) {
 			/*
@@ -1168,6 +1202,20 @@ get_arc(void)
 	res = BLKMULT;
 	hdsz = 0;
 	hdend = hdbuf;
+
+	/* try to verify against ar first */
+	if (buf_fill_internal(8) == 8) {
+		i = rd_wrbuf(hdend, 8);
+		if (i == 8 && uar_ismagic(hdbuf) == 0) {
+			extern int F_UAR;
+
+			frmt = &(fsub[F_UAR]);
+			return (0);
+		}
+		if (i > 0)
+			pback(hdend, i);
+	}
+
 	for (;;) {
 		for (;;) {
 			/*
@@ -1253,9 +1301,9 @@ get_arc(void)
 		}
 	}
 
-    out:
+ out:
 	/*
-	 * we cannot find a header, bow, apologize and quit
+	 * we cannot find a header, bow, apologise and quit
 	 */
 	paxwarn(1, "Sorry, unable to determine archive format.");
 	return(-1);

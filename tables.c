@@ -2,6 +2,11 @@
 /*	$NetBSD: tables.c,v 1.4 1995/03/21 09:07:45 cgd Exp $	*/
 
 /*-
+ * Copyright (c) 2005, 2012, 2015
+ *	mirabilos <m@mirbsd.org>
+ * Copyright (c) 2011
+ *	Svante Signell <svante.signell@telia.com>
+ *	Guillem Jover <guillem@debian.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,19 +39,21 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <sys/fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <time.h>
 #include "pax.h"
 #include "tables.h"
 #include "extern.h"
+
+__RCSID("$MirOS: src/bin/pax/tables.c,v 1.18 2015/10/13 20:34:14 tg Exp $");
 
 /*
  * Routines for controlling the contents of all the different databases pax
@@ -55,7 +62,7 @@
  * were kept simple, but do have complex rules for when the contents change.
  * As of this writing, the posix library functions were more complex than
  * needed for this application (pax databases have very short lifetimes and
- * do not survive after pax is finished). Pax is required to handle very
+ * do not survive after pax is finished). pax is required to handle very
  * large archives. These database routines carefully combine memory usage and
  * temporary file storage in ways which will not significantly impact runtime
  * performance while allowing the largest possible archives to be handled.
@@ -64,6 +71,7 @@
  */
 
 static HRDLNK **ltab = NULL;	/* hard link table for detecting hard links */
+static HRDFLNK **fltab = NULL;	/* hard link table for anonymisation */
 static FTM **ftab = NULL;	/* file time table for updating arch */
 static NAMT **ntab = NULL;	/* interactive rename storage table */
 static DEVT **dtab = NULL;	/* device/inode mapping tables */
@@ -104,7 +112,7 @@ lnk_start(void)
 	if (ltab != NULL)
 		return(0);
  	if ((ltab = (HRDLNK **)calloc(L_TAB_SZ, sizeof(HRDLNK *))) == NULL) {
-		paxwarn(1, "Cannot allocate memory for hard link table");
+		paxwarn(1, "Cannot allocate memory for %s", "hard link table");
 		return(-1);
 	}
 	return(0);
@@ -164,7 +172,7 @@ chk_lnk(ARCHD *arcn)
 			arcn->ln_nlen = strlcpy(arcn->ln_name, pt->name,
 				sizeof(arcn->ln_name));
 			/* XXX truncate? */
-			if (arcn->nlen >= sizeof(arcn->name))
+			if ((size_t)arcn->nlen >= sizeof(arcn->name))
 				arcn->nlen = sizeof(arcn->name) - 1;
 			if (arcn->type == PAX_REG)
 				arcn->type = PAX_HRG;
@@ -200,7 +208,7 @@ chk_lnk(ARCHD *arcn)
 		(void)free((char *)pt);
 	}
 
-	paxwarn(1, "Hard link table out of memory");
+	paxwarn(1, "%s out of memory", "Hard link table");
 	return(-1);
 }
 
@@ -309,7 +317,7 @@ lnk_end(void)
  * hash table is indexed by hashing the file path. The nodes in the table store
  * the length of the filename and the lseek offset within the scratch file
  * where the actual name is stored. Since there are never any deletions from
- * this table, fragmentation of the scratch file is never a issue. Lookups 
+ * this table, fragmentation of the scratch file is never a issue. Lookups
  * seem to not exhibit any locality at all (files in the database are rarely
  * looked up more than once...), so caching is just a waste of memory. The
  * only limitation is the amount of scratch file space available to store the
@@ -332,7 +340,7 @@ ftime_start(void)
 	if (ftab != NULL)
 		return(0);
  	if ((ftab = (FTM **)calloc(F_TAB_SZ, sizeof(FTM *))) == NULL) {
-		paxwarn(1, "Cannot allocate memory for file time table");
+		paxwarn(1, "Cannot allocate memory for %s", "file time table");
 		return(-1);
 	}
 
@@ -395,13 +403,13 @@ chk_ftime(ARCHD *arcn)
 				 * from the scratch file.
 				 */
 				if (lseek(ffd,pt->seek,SEEK_SET) != pt->seek) {
-					syswarn(1, errno,
-					    "Failed ftime table seek");
+					syswarn(1, errno, "Failed %s on %s",
+					    "seek", "file time table");
 					return(-1);
 				}
 				if (read(ffd, ckname, namelen) != namelen) {
-					syswarn(1, errno,
-					    "Failed ftime table read");
+					syswarn(1, errno, "Failed %s on %s",
+					    "read", "file time table");
 					return(-1);
 				}
 
@@ -452,11 +460,13 @@ chk_ftime(ARCHD *arcn)
 				ftab[indx] = pt;
 				return(0);
 			}
-			syswarn(1, errno, "Failed write to file time table");
+			syswarn(1, errno, "Failed %s on %s",
+			    "write", "file time table");
 		} else
-			syswarn(1, errno, "Failed seek on file time table");
+			syswarn(1, errno, "Failed %s on %s",
+			    "seek", "file time table");
 	} else
-		paxwarn(1, "File time table ran out of memory");
+		paxwarn(1, "%s out of memory", "File time table");
 
 	if (pt != NULL)
 		(void)free((char *)pt);
@@ -488,7 +498,7 @@ name_start(void)
 	if (ntab != NULL)
 		return(0);
  	if ((ntab = (NAMT **)calloc(N_TAB_SZ, sizeof(NAMT *))) == NULL) {
-		paxwarn(1, "Cannot allocate memory for interactive rename table");
+		paxwarn(1, "Cannot allocate memory for %s", "interactive rename table");
 		return(-1);
 	}
 	return(0);
@@ -560,7 +570,7 @@ add_name(char *oname, int onamelen, char *nname)
 		}
 		(void)free((char *)pt);
 	}
-	paxwarn(1, "Interactive rename table out of memory");
+	paxwarn(1, "%s out of memory", "Interactive rename table");
 	return(-1);
 }
 
@@ -596,7 +606,7 @@ sub_name(char *oname, int *onamelen, size_t onamesize)
 			 * and return (we know that oname has enough space)
 			 */
 			*onamelen = strlcpy(oname, pt->nname, onamesize);
-			if (*onamelen >= onamesize)
+			if ((size_t)*onamelen >= onamesize)
 				*onamelen = onamesize - 1; /* XXX truncate? */
 			return;
 		}
@@ -662,7 +672,7 @@ dev_start(void)
 	if (dtab != NULL)
 		return(0);
  	if ((dtab = (DEVT **)calloc(D_TAB_SZ, sizeof(DEVT *))) == NULL) {
-		paxwarn(1, "Cannot allocate memory for device mapping table");
+		paxwarn(1, "Cannot allocate memory for %s", "device mapping table");
 		return(-1);
 	}
 	return(0);
@@ -735,7 +745,7 @@ chk_dev(dev_t dev, int add)
 	 * list must be NULL.
 	 */
 	if ((pt = (DEVT *)malloc(sizeof(DEVT))) == NULL) {
-		paxwarn(1, "Device map table out of memory");
+		paxwarn(1, "%s out of memory", "Device map table");
 		return(NULL);
 	}
 	pt->dev = dev;
@@ -868,7 +878,7 @@ map_dev(ARCHD *arcn, u_long dev_mask, u_long ino_mask)
 	arcn->sb.st_ino = nino;
 	return(0);
 
-    bad:
+ bad:
 	paxwarn(1, "Unable to fix truncated inode/device field when storing %s",
 	    arcn->name);
 	paxwarn(0, "Archive may create improper hard links when extracted");
@@ -997,7 +1007,7 @@ add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
 		(void)free((char *)pt);
 	}
 
-	paxwarn(1, "Directory access time reset table ran out of memory");
+	paxwarn(1, "%s out of memory", "Directory access time reset table");
 	return;
 }
 
@@ -1060,7 +1070,7 @@ get_atdir(dev_t dev, ino_t ino, time_t *mtime, time_t *atime)
  * directory access mode and time storage routines (for directories CREATED
  * by pax).
  *
- * Pax requires that extracted directories, by default, have their access/mod
+ * pax requires that extracted directories, by default, have their access/mod
  * times and permissions set to the values specified in the archive. During the
  * actions of extracting (and creating the destination subtree during -rw copy)
  * directories extracted may be modified after being created. Even worse is
@@ -1118,23 +1128,35 @@ void
 add_dir(char *name, struct stat *psb, int frc_mode)
 {
 	DIRDATA *dblk;
+#if (_POSIX_VERSION >= 200809L)
+	char *rp = NULL;
+#else
 	char realname[MAXPATHLEN], *rp;
+#endif
 
 	if (dirp == NULL)
 		return;
 
 	if (havechd && *name != '/') {
-		if ((rp = realpath(name, realname)) == NULL) {
-			paxwarn(1, "Cannot canonicalize %s", name);
+#if (_POSIX_VERSION >= 200809L)
+		if ((rp = realpath(name, NULL)) == NULL)
+#else
+		if ((rp = realpath(name, realname)) == NULL)
+#endif
+		    {
+			paxwarn(1, "Cannot canonicalise %s", name);
 			return;
 		}
 		name = rp;
 	}
-	if (dircnt == dirsize) {
+	if (dircnt == (long)dirsize) {
 		dblk = realloc(dirp, 2 * dirsize * sizeof(DIRDATA));
 		if (dblk == NULL) {
 			paxwarn(1, "Unable to store mode and times for created"
 			    " directory: %s", name);
+#if (_POSIX_VERSION >= 200809L)
+			free(rp);
+#endif
 			return;
 		}
 		dirp = dblk;
@@ -1144,6 +1166,9 @@ add_dir(char *name, struct stat *psb, int frc_mode)
 	if ((dblk->name = strdup(name)) == NULL) {
 		paxwarn(1, "Unable to store mode and times for created"
 		    " directory: %s", name);
+#if (_POSIX_VERSION >= 200809L)
+		free(rp);
+#endif
 		return;
 	}
 	dblk->mode = psb->st_mode & 0xffff;
@@ -1151,6 +1176,9 @@ add_dir(char *name, struct stat *psb, int frc_mode)
 	dblk->atime = psb->st_atime;
 	dblk->frc_mode = frc_mode;
 	++dircnt;
+#if (_POSIX_VERSION >= 200809L)
+	free(rp);
+#endif
 }
 
 /*
@@ -1208,11 +1236,11 @@ proc_dir(void)
  */
 
 u_int
-st_hash(char *name, int len, int tabsz)
+st_hash(const char *name, int len, int tabsz)
 {
-	char *pt;
+	const char *pt;
 	char *dest;
-	char *end;
+	const char *end;
 	int i;
 	u_int key = 0;
 	int steps;
@@ -1266,4 +1294,105 @@ st_hash(char *name, int len, int tabsz)
 	 * return the result mod the table size
 	 */
 	return(key % tabsz);
+}
+
+/* Forward hard link anonymisation routines */
+
+/*
+ * flnk_start
+ *	Creates the hard link table.
+ * Return:
+ *	0 if created, -1 if failure
+ */
+
+int
+flnk_start(void)
+{
+	if (fltab != NULL)
+		return (0);
+ 	if ((fltab = (HRDFLNK **)calloc(L_TAB_SZ, sizeof(HRDFLNK *))) == NULL) {
+		paxwarn(1, "Cannot allocate memory for %s", "hard link table");
+		return (-1);
+	}
+	return (0);
+}
+
+/*
+ * chk_flnk()
+ *	Looks up entry in hard link hash table. If found, it copies the name
+ *	of the file it is linked to (we already saw that file) into ln_name.
+ *	lnkcnt is decremented and if goes to 1 the node is deleted from the
+ *	database. (We have seen all the links to this file). If not found,
+ *	we add the file to the database if it has the potential for having
+ *	hard links to other files we may process (it has a link count > 1)
+ * Return:
+ *	if found returns the new inode number; -1 on error
+ */
+
+int
+chk_flnk(ARCHD *arcn)
+{
+	HRDFLNK *pt;
+	HRDFLNK **ppt;
+	u_int indx;
+	static ino_t running = 3;
+
+	if (fltab == NULL)
+		return (-1);
+	/*
+	 * ignore those nodes that cannot have hard links
+	 */
+	if ((arcn->type == PAX_DIR) || (arcn->sb.st_nlink <= 1))
+		return (running++);
+
+	/*
+	 * hash inode number and look for this file
+	 */
+	indx = ((unsigned)arcn->sb.st_ino) % L_TAB_SZ;
+	if ((pt = fltab[indx]) != NULL) {
+		/*
+		 * it's hash chain in not empty, walk down looking for it
+		 */
+		ppt = &(fltab[indx]);
+		while (pt != NULL) {
+			if ((pt->ino == arcn->sb.st_ino) &&
+			    (pt->dev == arcn->sb.st_dev))
+				break;
+			ppt = &(pt->fow);
+			pt = pt->fow;
+		}
+
+		if (pt != NULL) {
+			/* found a link */
+			ino_t rv = pt->newi;
+			/* so cpio doesn't write file data twice */
+			arcn->type |= PAX_LINKOR;
+			/*
+			 * if we have found all the links to this file, remove
+			 * it from the database
+			 */
+			if (--pt->nlink <= 1) {
+				*ppt = pt->fow;
+				(void)free((char *)pt);
+			}
+			return (rv);
+		}
+	}
+
+	/*
+	 * we never saw this file before. It has links so we add it to the
+	 * front of this hash chain
+	 */
+	if ((pt = (HRDFLNK *)malloc(sizeof(HRDFLNK))) != NULL) {
+		pt->dev = arcn->sb.st_dev;
+		pt->ino = arcn->sb.st_ino;
+		pt->nlink = arcn->sb.st_nlink;
+		pt->fow = fltab[indx];
+		pt->newi = running++;
+		fltab[indx] = pt;
+		return (pt->newi);
+	}
+
+	paxwarn(1, "%s out of memory", "Hard link table");
+	return (-1);
 }

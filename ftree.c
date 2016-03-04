@@ -34,19 +34,21 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <fts.h>
+#include <time.h>
 #include "pax.h"
 #include "ftree.h"
 #include "extern.h"
+
+__RCSID("$MirOS: src/bin/pax/ftree.c,v 1.6 2012/05/20 16:13:17 tg Exp $");
 
 /*
  * routines to interface with the fts library function.
@@ -76,7 +78,7 @@ static char *getpathname(char *, int);
 
 /*
  * ftree_start()
- *	initialize the options passed to fts_open() during this run of pax
+ *	initialise the options passed to fts_open() during this run of pax
  *	options are based on the selection of pax options by the user
  *	fts_start() also calls fts_arg() to open the first valid file arg. We
  *	also attempt to reset directory access times when -t (tflag) is set.
@@ -213,7 +215,7 @@ ftree_sel(ARCHD *arcn)
  */
 
 void
-ftree_skipped_newer(ARCHD *arcn)
+ftree_skipped_newer(void)
 {
 	/* skipped due to -u/-D, mark accordingly */
 	if (ftcur != NULL)
@@ -422,7 +424,7 @@ next_file(ARCHD *arcn)
 
 		/*
 		 * ok got a file tree node to process. copy info into arcn
-		 * structure (initialize as required)
+		 * structure (initialise as required)
 		 */
 		arcn->skip = 0;
 		arcn->pad = 0;
@@ -502,7 +504,7 @@ next_file(ARCHD *arcn)
 	 * copy file name, set file name length
 	 */
 	arcn->nlen = strlcpy(arcn->name, ftent->fts_path, sizeof(arcn->name));
-	if (arcn->nlen >= sizeof(arcn->name))
+	if ((size_t)arcn->nlen >= sizeof(arcn->name))
 		arcn->nlen = sizeof(arcn->name) - 1; /* XXX truncate? */
 	arcn->org_name = ftent->fts_path;
 	return(0);

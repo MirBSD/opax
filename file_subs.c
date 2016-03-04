@@ -2,6 +2,10 @@
 /*	$NetBSD: file_subs.c,v 1.4 1995/03/21 09:07:18 cgd Exp $	*/
 
 /*-
+ * Copyright (c) 2007, 2008, 2009, 2012, 2014
+ *	Thorsten Glaser <tg@mirbsd.org>
+ * Copyright (c) 2011
+ *	Svante Signell <svante.signell@telia.com>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -44,13 +48,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
+#ifdef __INTERIX
+#include <utime.h>
+#endif
 #include "pax.h"
 #include "options.h"
 #include "extern.h"
 
-static int
-mk_link(char *, struct stat *, char *, int);
+__RCSID("$MirOS: src/bin/pax/file_subs.c,v 1.20 2015/10/13 20:18:50 tg Exp $");
+
+#ifndef __GLIBC_PREREQ
+#define __GLIBC_PREREQ(maj,min)	0
+#endif
+
+#if !defined(__INTERIX) && (!defined(__GLIBC__) || __GLIBC_PREREQ(2, 3))
+#define PAX_FUTIMES	/* we have futimes() */
+#endif
+
+static int mk_link(char *, struct stat *, char *, int);
+#ifdef PAX_FUTIMES
+static void fset_ftime(char *, int, time_t, time_t, int);
+#endif
 
 /*
  * routines that deal with file operations such as: creating, removing;
@@ -151,9 +171,11 @@ file_close(ARCHD *arcn, int fd)
 		arcn->sb.st_mode &= ~(SETBITS);
 	if (pmode)
 		fset_pmode(arcn->name, fd, arcn->sb.st_mode);
+#ifdef PAX_FUTIMES
 	if (patime || pmtime)
 		fset_ftime(arcn->name, fd, arcn->sb.st_mtime,
 		    arcn->sb.st_atime, 0);
+#endif
 	if (close(fd) < 0)
 		syswarn(0, errno, "Unable to close file descriptor on %s",
 		    arcn->name);
@@ -164,13 +186,15 @@ file_close(ARCHD *arcn, int fd)
  *	Create a hard link to arcn->ln_name from arcn->name. arcn->ln_name
  *	must exist;
  * Return:
- *	0 if ok, -1 otherwise
+ *	fd+2 if data should be extracted,
+ *	0 if ok, 1 if we could not make the link, -1 otherwise
  */
 
 int
-lnk_creat(ARCHD *arcn)
+lnk_creat(ARCHD *arcn, int *fdp)
 {
 	struct stat sb;
+	int rv;
 
 	/*
 	 * we may be running as root, so we have to be sure that link target
@@ -188,7 +212,21 @@ lnk_creat(ARCHD *arcn)
 		return(-1);
 	}
 
-	return(mk_link(arcn->ln_name, &sb, arcn->name, 0));
+	rv = mk_link(arcn->ln_name, &sb, arcn->name, 0);
+	if (fdp != NULL && rv == 0 && sb.st_size == 0 && arcn->skip > 0) {
+		/* request to write out file data late (broken archive) */
+		if (pmode)
+			set_pmode(arcn->name, 0600);
+		if ((*fdp = open(arcn->name, O_WRONLY | O_TRUNC)) == -1) {
+			rv = errno;
+			syswarn(1, rv, "Unable to re-open %s", arcn->name);
+			if (pmode)
+				set_pmode(arcn->name, sb.st_mode);
+		}
+		rv = 0;
+	} else if (fdp != NULL)
+		*fdp = -1;
+	return (rv);
 }
 
 /*
@@ -251,6 +289,23 @@ chk_same(ARCHD *arcn)
 }
 
 /*
+ * helper function to copy a symbolic link
+ */
+
+static int
+mk_link_symlink(const char *to, const char *from)
+{
+	int cnt;
+	char buf[PAXPATHLEN + 1];
+
+	if ((cnt = readlink(to, buf, PAXPATHLEN)) < 0)
+		return (-1);
+	/* cf. comment in ftree.c:next_file() */
+	buf[cnt] = '\0';
+	return (symlink(buf, from));
+}
+
+/*
  * mk_link()
  *	try to make a hard link between two files. if ign set, we do not
  *	complain.
@@ -310,9 +365,47 @@ mk_link(char *to, struct stat *to_sb, char *from, int ign)
 		if (link(to, from) == 0)
 			break;
 		oerrno = errno;
+		if (S_ISLNK(to_sb->st_mode)) {
+			/* just copy the symlink */
+			if (mk_link_symlink(to, from) == 0)
+				break;
+		}
 		if (!nodirs && chk_path(from, to_sb->st_uid, to_sb->st_gid) == 0)
 			continue;
+		/*-
+		 * non-standard (via -M lncp) cross-device link handling:
+		 * copy if hard link fails (but what if there are several
+		 * links for the same file mixed between several devices?
+		 * this code copies for all non-original devices, instead
+		 * of tracking them and linking between them on their re-
+		 * spective target device)
+		 */
+		if (oerrno == EXDEV && (anonarch & ANON_LNCP)) {
+			int fdsrc, fddest;
+			ARCHD tarcn;
+
+			if ((fdsrc = open(to, O_RDONLY, 0)) < 0) {
+				if (!ign)
+					syswarn(1, errno,
+					    "Unable to open %s to read", to);
+				goto lncp_failed;
+			}
+			strlcpy(tarcn.name, from, sizeof(tarcn.name));
+			memcpy(&tarcn.sb, to_sb, sizeof(struct stat));
+			tarcn.type = PAX_REG;	/* XXX */
+			tarcn.org_name = to;
+			if ((fddest = file_creat(&tarcn)) < 0) {
+				rdfile_close(&tarcn, &fdsrc);
+				goto lncp_failed;
+			}
+			cp_file(&tarcn, fdsrc, fddest);
+			file_close(&tarcn, fddest);
+			rdfile_close(&tarcn, &fdsrc);
+			/* file copied successfully, continue on */
+			break;
+		}
 		if (!ign) {
+ lncp_failed:
 			syswarn(1, oerrno, "Could not link to %s from %s", to,
 			    from);
 			return(-1);
@@ -343,7 +436,7 @@ node_creat(ARCHD *arcn)
 	int pass = 0;
 	mode_t file_mode;
 	struct stat sb;
-	char target[MAXPATHLEN];
+	char *target = NULL;
 	char *nm = arcn->name;
 	int len;
 
@@ -366,8 +459,15 @@ node_creat(ARCHD *arcn)
 			if (strcmp(NM_TAR, argv0) == 0 && Lflag) {
 				while (lstat(nm, &sb) == 0 &&
 				    S_ISLNK(sb.st_mode)) {
+					target = malloc(sb.st_size + 1);
+					if (target == NULL) {
+						oerrno = ENOMEM;
+						syswarn(1, oerrno,
+						    "Out of memory");
+						return (-1);
+					}
 					len = readlink(nm, target,
-					    sizeof target - 1);
+					    sb.st_size + 1);
 					if (len == -1) {
 						syswarn(0, errno,
 						   "cannot follow symlink %s in chain for %s",
@@ -381,7 +481,7 @@ node_creat(ARCHD *arcn)
 			}
 			res = mkdir(nm, file_mode);
 
-badlink:
+ badlink:
 			if (ign)
 				res = 0;
 			break;
@@ -403,7 +503,8 @@ badlink:
 			paxwarn(0,
 			    "%s skipped. Sockets cannot be copied or extracted",
 			    nm);
-			return(-1);
+			free(target);
+			return (-1);
 		case PAX_SLK:
 			res = symlink(arcn->ln_name, nm);
 			break;
@@ -417,7 +518,8 @@ badlink:
 			 */
 			paxwarn(0, "%s has an unknown file type, skipping",
 				nm);
-			return(-1);
+			free(target);
+			return (-1);
 		}
 
 		/*
@@ -432,17 +534,21 @@ badlink:
 		 * we failed to make the node
 		 */
 		oerrno = errno;
-		if ((ign = unlnk_exist(nm, arcn->type)) < 0)
-			return(-1);
+		if ((ign = unlnk_exist(nm, arcn->type)) < 0) {
+			free(target);
+			return (-1);
+		}
 
 		if (++pass <= 1)
 			continue;
 
 		if (nodirs || chk_path(nm,arcn->sb.st_uid,arcn->sb.st_gid) < 0) {
 			syswarn(1, oerrno, "Could not create: %s", nm);
-			return(-1);
+			free(target);
+			return (-1);
 		}
 	}
+	free(target);
 
 	/*
 	 * we were able to create the node. set uid/gid, modes and times
@@ -458,7 +564,7 @@ badlink:
 	 * symlinks are done now.
 	 */
 	if (arcn->type == PAX_SLK)
-		return(0);
+		return (0);
 
 	/*
 	 * IMPORTANT SECURITY NOTE:
@@ -509,7 +615,7 @@ badlink:
 
 	if (patime || pmtime)
 		set_ftime(nm, arcn->sb.st_mtime, arcn->sb.st_atime, 0);
-	return(0);
+	return (0);
 }
 
 /*
@@ -664,6 +770,9 @@ set_ftime(char *fnm, time_t mtime, time_t atime, int frc)
 {
 	static struct timeval tv[2] = {{0L, 0L}, {0L, 0L}};
 	struct stat sb;
+#ifdef __INTERIX
+	struct utimbuf u;
+#endif
 
 	tv[0].tv_sec = (long)atime;
 	tv[1].tv_sec = (long)mtime;
@@ -684,13 +793,20 @@ set_ftime(char *fnm, time_t mtime, time_t atime, int frc)
 	/*
 	 * set the times
 	 */
+#ifdef __INTERIX
+	u.actime = tv[0].tv_sec;
+	u.modtime = tv[1].tv_sec;
+	if (utime(fnm, &u) < 0)
+#else
 	if (utimes(fnm, tv) < 0)
+#endif
 		syswarn(1, errno, "Access/modification time set failed on: %s",
 		    fnm);
 	return;
 }
 
-void
+#ifdef PAX_FUTIMES
+static void
 fset_ftime(char *fnm, int fd, time_t mtime, time_t atime, int frc)
 {
 	static struct timeval tv[2] = {{0L, 0L}, {0L, 0L}};
@@ -719,6 +835,7 @@ fset_ftime(char *fnm, int fd, time_t mtime, time_t atime, int frc)
 		    fnm);
 	return;
 }
+#endif
 
 /*
  * set_ids()
@@ -735,8 +852,12 @@ set_ids(char *fnm, uid_t uid, gid_t gid)
 		 * ignore EPERM unless in verbose mode or being run by root.
 		 * if running as pax, POSIX requires a warning.
 		 */
-		if (strcmp(NM_PAX, argv0) == 0 || errno != EPERM || vflag ||
-		    geteuid() == 0)
+		if (strcmp(NM_PAX, argv0) == 0
+#ifndef __INTERIX
+		    || errno != EPERM || vflag ||
+		    geteuid() == 0
+#endif
+		    )
 			syswarn(1, errno, "Unable to set file uid/gid of %s",
 			    fnm);
 		return(-1);
@@ -771,17 +892,23 @@ fset_ids(char *fnm, int fd, uid_t uid, gid_t gid)
 int
 set_lids(char *fnm, uid_t uid, gid_t gid)
 {
+#ifndef __APPLE__
 	if (lchown(fnm, uid, gid) < 0) {
 		/*
 		 * ignore EPERM unless in verbose mode or being run by root.
 		 * if running as pax, POSIX requires a warning.
 		 */
-		if (strcmp(NM_PAX, argv0) == 0 || errno != EPERM || vflag ||
-		    geteuid() == 0)
+		if (strcmp(NM_PAX, argv0) == 0
+#ifndef __INTERIX
+		    || errno != EPERM || vflag ||
+		    geteuid() == 0
+#endif
+		    )
 			syswarn(1, errno, "Unable to set file uid/gid of %s",
 			    fnm);
 		return(-1);
 	}
+#endif
 	return(0);
 }
 
@@ -907,6 +1034,8 @@ file_write(int fd, char *str, int cnt, int *rem, int *isempt, int sz,
 				 */
 				if (fd > -1 &&
 				    lseek(fd, (off_t)wcnt, SEEK_CUR) < 0) {
+					if (errno == ESPIPE)
+						goto isapipe;
 					syswarn(1,errno,"File seek on %s",
 					    name);
 					return(-1);
@@ -914,6 +1043,7 @@ file_write(int fd, char *str, int cnt, int *rem, int *isempt, int sz,
 				st = pt;
 				continue;
 			}
+ isapipe:
 			/*
 			 * drat, the buf is not zero filled
 			 */
@@ -1028,7 +1158,7 @@ set_crc(ARCHD *arcn, int fd)
 	int i;
 	int res;
 	off_t cpcnt = 0L;
-	u_long size;
+	size_t size;
 	u_int32_t crc = 0;
 	char tbuf[FILEBLK];
 	struct stat sb;
@@ -1041,8 +1171,8 @@ set_crc(ARCHD *arcn, int fd)
 		return(0);
 	}
 
-	if ((size = (u_long)arcn->sb.st_blksize) > (u_long)sizeof(tbuf))
-		size = (u_long)sizeof(tbuf);
+	if ((size = (size_t)arcn->sb.st_blksize) > sizeof(tbuf))
+		size = sizeof(tbuf);
 
 	/*
 	 * read all the bytes we think that there are in the file. If the user

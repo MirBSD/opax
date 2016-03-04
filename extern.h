@@ -1,7 +1,10 @@
+/**	$MirOS: src/bin/pax/extern.h,v 1.26 2015/10/14 18:10:08 tg Exp $ */
 /*	$OpenBSD: extern.h,v 1.34 2010/12/02 04:08:27 tedu Exp $	*/
 /*	$NetBSD: extern.h,v 1.5 1996/03/26 23:54:16 mrg Exp $	*/
 
 /*-
+ * Copyright © 2013, 2015
+ *	mirabilos <m@mirbsd.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -40,13 +43,24 @@
  * External references from each source file
  */
 
-#include <sys/cdefs.h>
+
+/*
+ * ar.c
+ */
+int uar_stwr(int);
+int uar_ismagic(char *);
+int uar_id(char *, int) __attribute__((__noreturn__));
+int uar_rd(ARCHD *, char *);
+int uar_wr(ARCHD *);
+int uar_wr_data(ARCHD *, int, off_t *);
+off_t uar_endrd(void);
+int uar_trail(ARCHD *, char *, int, int *) __attribute__((__noreturn__));
 
 /*
  * ar_io.c
  */
 extern const char *arcname;
-extern const char *gzip_program;
+extern const char *compress_program;
 extern int force_one_volume;
 int ar_open(const char *);
 void ar_close(void);
@@ -59,6 +73,8 @@ int ar_rdsync(void);
 int ar_fow(off_t, off_t *);
 int ar_rev(off_t );
 int ar_next(void);
+extern int ar_do_keepopen;
+int ar_next_keepopen(void);
 
 /*
  * ar_subs.c
@@ -95,6 +111,7 @@ int wr_rdfile(ARCHD *, int, off_t *);
 int rd_wrfile(ARCHD *, int, off_t *);
 void cp_file(ARCHD *, int, int);
 int buf_fill(void);
+int buf_fill_internal(int);
 int buf_flush(int);
 
 /*
@@ -104,10 +121,10 @@ int uidtb_start(void);
 int gidtb_start(void);
 int usrtb_start(void);
 int grptb_start(void);
-char * name_uid(uid_t, int);
-char * name_gid(gid_t, int);
-int uid_name(char *, uid_t *);
-int gid_name(char *, gid_t *);
+const char *name_uid(uid_t, int);
+const char *name_gid(gid_t, int);
+int uid_name(const char *, uid_t *);
+int gid_name(const char *, gid_t *);
 
 /*
  * cpio.c
@@ -118,14 +135,17 @@ int cpio_endwr(void);
 int cpio_id(char *, int);
 int cpio_rd(ARCHD *, char *);
 off_t cpio_endrd(void);
-int cpio_stwr(void);
+int cpio_stwr(int);
+int dist_stwr(int);
 int cpio_wr(ARCHD *);
 int vcpio_id(char *, int);
 int crc_id(char *, int);
 int crc_strd(void);
 int vcpio_rd(ARCHD *, char *);
 off_t vcpio_endrd(void);
-int crc_stwr(void);
+int crc_stwr(int);
+int v4root_stwr(int);
+int v4norm_stwr(int);
 int vcpio_wr(ARCHD *);
 int bcpio_id(char *, int);
 int bcpio_rd(ARCHD *, char *);
@@ -138,14 +158,13 @@ int bcpio_wr(ARCHD *);
 extern char *gnu_name_string, *gnu_link_string;
 int file_creat(ARCHD *);
 void file_close(ARCHD *, int);
-int lnk_creat(ARCHD *);
+int lnk_creat(ARCHD *, int *);
 int cross_lnk(ARCHD *);
 int chk_same(ARCHD *);
 int node_creat(ARCHD *);
 int unlnk_exist(char *, int);
 int chk_path(char *, uid_t, gid_t);
 void set_ftime(char *fnm, time_t mtime, time_t atime, int frc);
-void fset_ftime(char *fnm, int, time_t mtime, time_t atime, int frc);
 int set_ids(char *, uid_t, gid_t);
 int fset_ids(char *, int, uid_t, gid_t);
 int set_lids(char *, uid_t, gid_t);
@@ -162,7 +181,7 @@ int set_crc(ARCHD *, int);
 int ftree_start(void);
 int ftree_add(char *, int);
 void ftree_sel(ARCHD *);
-void ftree_skipped_newer(ARCHD *);
+void ftree_skipped_newer(void);
 void ftree_chk(void);
 int next_file(ARCHD *);
 
@@ -174,10 +193,8 @@ void ls_tty(ARCHD *);
 void safe_print(const char *, FILE *);
 u_long asc_ul(char *, int, int);
 int ul_asc(u_long, char *, int, int);
-#ifndef LONG_OFF_T
-u_quad_t asc_uqd(char *, int, int);
-int uqd_asc(u_quad_t, char *, int, int);
-#endif
+ot_type asc_ot(char *, int, int);
+int ot_asc(ot_type, char *, int, int);
 size_t fieldcpy(char *, size_t, const char *, size_t);
 
 /*
@@ -194,6 +211,7 @@ void options(int, char **);
 OPLIST * opt_next(void);
 int opt_add(const char *);
 int bad_opt(void);
+void guess_compress_program(int);
 char *chdname;
 
 /*
@@ -221,11 +239,11 @@ extern int lflag;
 extern int nflag;
 extern int tflag;
 extern int uflag;
+extern int Vflag;
 extern int vflag;
 extern int Dflag;
 extern int Hflag;
 extern int Lflag;
-extern int Nflag;
 extern int Xflag;
 extern int Yflag;
 extern int Zflag;
@@ -240,15 +258,13 @@ extern int rmleadslash;
 extern int exit_val;
 extern int docrc;
 extern char *dirptr;
-extern char *ltmfrmt;
-extern char *argv0;
+extern const char *argv0;
 extern FILE *listf;
 extern char *tempfile;
 extern char *tempbase;
 extern int havechd;
 
 int main(int, char **);
-void sig_cleanup(int);
 
 /*
  * sel_subs.c
@@ -280,7 +296,9 @@ int get_atdir(dev_t, ino_t, time_t *, time_t *);
 int dir_start(void);
 void add_dir(char *, struct stat *, int);
 void proc_dir(void);
-u_int st_hash(char *, int, int);
+u_int st_hash(const char *, int, int);
+int flnk_start(void);
+int chk_flnk(ARCHD *);
 
 /*
  * tar.c
@@ -294,7 +312,7 @@ int tar_opt(void);
 int tar_rd(ARCHD *, char *);
 int tar_wr(ARCHD *);
 int ustar_strd(void);
-int ustar_stwr(void);
+int ustar_stwr(int);
 int ustar_id(char *, int);
 int ustar_rd(ARCHD *, char *);
 int ustar_wr(ARCHD *);
@@ -302,8 +320,25 @@ int ustar_wr(ARCHD *);
 /*
  * tty_subs.c
  */
+extern char fdgetline_err;
+char *fdgetline(int);
 int tty_init(void);
-void tty_prnt(const char *, ...);
-int tty_read(char *, int);
-void paxwarn(int, const char *, ...);
-void syswarn(int, int, const char *, ...);
+void tty_prnt(const char *, ...)
+    __attribute__((__format__(__printf__, 1, 2)));
+char *tty_rd(void);
+void paxwarn(int, const char *, ...)
+    __attribute__((__format__(__printf__, 2, 3)));
+void syswarn(int, int, const char *, ...)
+    __attribute__((__format__(__printf__, 3, 4)));
+
+/*
+ * portability glue
+ */
+#ifndef HAVE_STRLCPY
+size_t strlcat(char *, const char *, size_t);
+size_t strlcpy(char *, const char *, size_t);
+#endif
+
+#ifndef HAVE_STRMODE
+void strmode(mode_t, char *);
+#endif

@@ -34,21 +34,22 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <ctype.h>
 #include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tzfile.h>
+#include <time.h>
 #include <unistd.h>
 #include "pax.h"
 #include "sel_subs.h"
 #include "extern.h"
+
+__RCSID("$MirOS: src/bin/pax/sel_subs.c,v 1.6 2012/06/05 18:22:57 tg Exp $");
 
 static int str_sec(const char *, time_t *);
 static int usr_match(ARCHD *);
@@ -441,7 +442,7 @@ trng_add(char *str)
 	trtail = pt;
 	return(0);
 
-    out:
+ out:
 	paxwarn(1, "Time range format is: [[[[[cc]yy]mm]dd]HH]MM[.SS][/[c][m]]");
 	return(-1);
 }

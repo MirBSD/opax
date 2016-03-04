@@ -34,19 +34,21 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <string.h>
 #include <stdio.h>
 #include <pwd.h>
 #include <grp.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
 #include "pax.h"
 #include "cache.h"
 #include "extern.h"
+
+__RCSID("$MirOS: src/bin/pax/cache.c,v 1.8 2012/06/08 14:52:47 tg Exp $");
 
 /*
  * routines that control user, group, uid and gid caches (for the archive
@@ -166,7 +168,7 @@ grptb_start(void)
  *	Pointer to stored name (or a empty string)
  */
 
-char *
+const char *
 name_uid(uid_t uid, int frc)
 {
 	struct passwd *pw;
@@ -192,7 +194,11 @@ name_uid(uid_t uid, int frc)
 	 * No entry for this uid, we will add it
 	 */
 	if (!pwopn) {
+#if defined(__GLIBC__)
+		setpwent();
+#elif !defined(__INTERIX)
 		setpassent(1);
+#endif
 		++pwopn;
 	}
 	if (ptr == NULL)
@@ -232,7 +238,7 @@ name_uid(uid_t uid, int frc)
  *	Pointer to stored name (or a empty string)
  */
 
-char *
+const char *
 name_gid(gid_t gid, int frc)
 {
 	struct group *gr;
@@ -258,7 +264,11 @@ name_gid(gid_t gid, int frc)
 	 * No entry for this gid, we will add it
 	 */
 	if (!gropn) {
+#if defined(__GLIBC__)
+		setgrent();
+#elif !defined(__INTERIX) && !defined(__CYGWIN__)
 		setgroupent(1);
+#endif
 		++gropn;
 	}
 	if (ptr == NULL)
@@ -298,7 +308,7 @@ name_gid(gid_t gid, int frc)
  */
 
 int
-uid_name(char *name, uid_t *uid)
+uid_name(const char *name, uid_t *uid)
 {
 	struct passwd *pw;
 	UIDC *ptr;
@@ -325,7 +335,11 @@ uid_name(char *name, uid_t *uid)
 	}
 
 	if (!pwopn) {
+#if defined(__GLIBC__)
+		setpwent();
+#elif !defined(__INTERIX)
 		setpassent(1);
+#endif
 		++pwopn;
 	}
 
@@ -361,7 +375,7 @@ uid_name(char *name, uid_t *uid)
  */
 
 int
-gid_name(char *name, gid_t *gid)
+gid_name(const char *name, gid_t *gid)
 {
 	struct group *gr;
 	GIDC *ptr;
@@ -388,7 +402,11 @@ gid_name(char *name, gid_t *gid)
 	}
 
 	if (!gropn) {
+#if defined(__GLIBC__)
+		setgrent();
+#elif !defined(__INTERIX) && !defined(__CYGWIN__)
 		setgroupent(1);
+#endif
 		++gropn;
 	}
 	if (ptr == NULL)

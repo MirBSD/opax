@@ -2,6 +2,8 @@
 /*	$NetBSD: tty_subs.c,v 1.5 1995/03/21 09:07:52 cgd Exp $	*/
 
 /*-
+ * Copyright (c) 2012, 2014
+ *	Thorsten Glaser <tg@mirbsd.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,27 +36,31 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#define _GNU_SOURCE
+#include <sys/param.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "pax.h"
 #include "extern.h"
-#include <stdarg.h>
+
+__RCSID("$MirOS: src/bin/pax/tty_subs.c,v 1.11 2014/07/03 19:51:55 tg Exp $");
 
 /*
  * routines that deal with I/O to and from the user
  */
 
-#define DEVTTY		"/dev/tty"	/* device for interactive i/o */
-static FILE *ttyoutf = NULL;		/* output pointing at control tty */
-static FILE *ttyinf = NULL;		/* input pointing at control tty */
+/* device for interactive I/O */
+static const char devtty[] = "/dev/tty";
+/* file descriptor for accessing it */
+static int ttyfd;
 
 /*
  * tty_init()
@@ -65,22 +71,12 @@ static FILE *ttyinf = NULL;		/* input pointing at control tty */
 int
 tty_init(void)
 {
-	int ttyfd;
-
-	if ((ttyfd = open(DEVTTY, O_RDWR)) >= 0) {
-		if ((ttyoutf = fdopen(ttyfd, "w")) != NULL) {
-			if ((ttyinf = fdopen(ttyfd, "r")) != NULL)
-				return(0);
-			(void)fclose(ttyoutf);
-		}
-		(void)close(ttyfd);
+	if ((ttyfd = open(devtty, O_RDWR)) == -1 && iflag) {
+		paxwarn(1, "Fatal error, cannot open %s", devtty);
+		return (-1);
 	}
 
-	if (iflag) {
-		paxwarn(1, "Fatal error, cannot open %s", DEVTTY);
-		return(-1);
-	}
-	return(0);
+	return (0);
 }
 
 /*
@@ -93,36 +89,37 @@ void
 tty_prnt(const char *fmt, ...)
 {
 	va_list ap;
+	char *cp;
+	int len;
 
 	va_start(ap, fmt);
-	if (ttyoutf == NULL) {
-		va_end(ap);
-		return;
+	if (ttyfd != -1) {
+		len = vasprintf(&cp, fmt, ap);
+		if (len != -1) {
+#ifdef _FORTIFY_SOURCE
+			/* booh */
+			len = write(ttyfd, cp, len);
+#else
+			write(ttyfd, cp, len);
+#endif
+			free(cp);
+		}
 	}
-	(void)vfprintf(ttyoutf, fmt, ap);
 	va_end(ap);
-	(void)fflush(ttyoutf);
 }
 
 /*
- * tty_read()
+ * tty_rd()
  *	read a string from the controlling terminal if it is open into the
  *	supplied buffer
  * Return:
- *	0 if data was read, -1 otherwise.
+ *	pointer caller must free if data was read, NULL otherwise.
  */
 
-int
-tty_read(char *str, int len)
+char *
+tty_rd(void)
 {
-	if (ttyinf == NULL || fgets(str, len, ttyinf) == NULL)
-		return(-1);
-
-	/*
-	 * strip off that trailing newline
-	 */
-	str[strcspn(str, "\n")] = '\0';
-	return(0);
+	return (ttyfd == -1 ? NULL : fdgetline(ttyfd));
 }
 
 /*
@@ -143,7 +140,7 @@ paxwarn(int set, const char *fmt, ...)
 	 * when vflag we better ship out an extra \n to get this message on a
 	 * line by itself
 	 */
-	if (vflag && vfpart) {
+	if (vfpart) {
 		(void)fflush(listf);
 		(void)fputc('\n', stderr);
 		vfpart = 0;
@@ -172,7 +169,7 @@ syswarn(int set, int errnum, const char *fmt, ...)
 	 * when vflag we better ship out an extra \n to get this message on a
 	 * line by itself
 	 */
-	if (vflag && vfpart) {
+	if (vfpart) {
 		(void)fflush(listf);
 		(void)fputc('\n', stderr);
 		vfpart = 0;
@@ -187,4 +184,68 @@ syswarn(int set, int errnum, const char *fmt, ...)
 	if (errnum > 0)
 		(void)fprintf(stderr, ": %s", strerror(errnum));
 	(void)fputc('\n', stderr);
+}
+
+/*
+ * fdgetline()
+ *	read a line from a file descriptor, similar to fgetln(3).
+ *	caller must free(3) the result string.
+ */
+
+char fdgetline_err;
+
+char *
+fdgetline(int fd)
+{
+	size_t n = 0;
+	char *rv = NULL;
+	size_t z = 32;
+	ssize_t rdr;
+	char *np;
+	int term;
+
+	term = zeroflag ? '\0' : '\n';	/* path termination character */
+
+	goto fdgetline_alloc;
+
+	do {
+		if (n == z) {
+			z <<= 1;
+			if (z < n) {
+				/* overflow */
+				break;
+			}
+ fdgetline_alloc:
+			if ((np = realloc(rv, z)) == NULL) {
+				/* allocation error */
+				break;
+			}
+			rv = np;
+		}
+
+		rdr = read(fd, rv + n, 1);
+		if (rdr == 0 && n == 0) {
+			/* EOF reached, but nothing ever read */
+			free(rv);
+			rv = NULL;
+			goto fdgetline_eod;
+		}
+		if (rdr == 0 || (rdr == 1 && rv[n] == term)) {
+			/* EOF or EOL */
+			rv[n++] = 0;
+			if ((np = realloc(rv, n)) != NULL)
+				rv = np;
+ fdgetline_eod:
+			fdgetline_err = 0;
+			return (rv);
+		}
+		++n;
+	} while (rdr == 1);
+
+	/* fall through do-while if rdr > 1 (read too much) or < 0 (error) */
+	/* get here via break on memory allocation errors */
+
+	free(rv);
+	fdgetline_err = 1;
+	return (NULL);
 }
