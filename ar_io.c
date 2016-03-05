@@ -1,4 +1,4 @@
-/*	$OpenBSD: ar_io.c,v 1.50 2015/03/22 03:15:00 guenther Exp $	*/
+/*	$OpenBSD: ar_io.c,v 1.55 2015/12/06 16:57:45 deraadt Exp $	*/
 /*	$NetBSD: ar_io.c,v 1.5 1996/03/26 23:54:13 mrg Exp $	*/
 
 /*-
@@ -1260,6 +1260,12 @@ ar_start_gzip(int fd, const char *path, int wr)
 			dup2(fds[0], fd);
 		close(fds[0]);
 		close(fds[1]);
+
+		if (pmode == 0 || (act != EXTRACT && act != COPY)) {
+		    if (pledge("stdio rpath wpath cpath fattr dpath getpw ioctl proc",
+			NULL) == -1)
+				err(1, "pledge");
+		}
 	} else {
 		if (wr) {
 			dup2(fds[0], STDIN_FILENO);
@@ -1272,6 +1278,10 @@ ar_start_gzip(int fd, const char *path, int wr)
 		}
 		close(fds[0]);
 		close(fds[1]);
+
+		/* System compressors are more likely to use pledge(2) */
+		putenv("PATH=/usr/bin:/usr/local/bin");
+
 		if (execlp(path, path, gzip_flags, (char *)NULL) < 0)
 			err(1, "could not exec %s", path);
 		/* NOTREACHED */

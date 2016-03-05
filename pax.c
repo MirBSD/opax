@@ -1,4 +1,4 @@
-/*	$OpenBSD: pax.c,v 1.41 2015/03/09 04:23:29 guenther Exp $	*/
+/*	$OpenBSD: pax.c,v 1.44 2015/12/16 01:39:11 tb Exp $	*/
 /*	$NetBSD: pax.c,v 1.5 1996/03/26 23:54:20 mrg Exp $	*/
 
 /*-
@@ -255,6 +255,23 @@ main(int argc, char **argv)
 	options(argc, argv);
 	if ((gen_init() < 0) || (tty_init() < 0))
 		return(exit_val);
+
+	/*
+	 * pmode needs to restore setugid bits when extracting or copying,
+	 * so can't pledge at all then.
+	 */
+	if (pmode == 0 || (act != EXTRACT && act != COPY)) {
+		if (pledge("stdio rpath wpath cpath dpath fattr getpw ioctl proc exec",
+		    NULL) == -1)
+			err(1, "pledge");
+
+		/* Copy mode, or no gzip -- don't need to fork/exec. */
+		if (gzip_program == NULL || act == COPY) {
+			if (pledge("stdio rpath wpath fattr cpath getpw ioctl",
+			    NULL) == -1)
+				err(1, "pledge");
+		}
+	}
 
 	/*
 	 * select a primary operation mode
