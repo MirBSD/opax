@@ -1321,7 +1321,8 @@ add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
 	/*
 	 * add it to the front of the hash chain
 	 */
-	if ((pt = (ATDIR *)malloc(sizeof(ATDIR))) != NULL) {
+	if ((pt = malloc(sizeof *pt)) != NULL) {
+		if ((pt->ft.ft_name = strdup(fname)) != NULL) {
 			pt->ft.ft_dev = dev;
 			pt->ft.ft_ino = ino;
 			pt->ft.ft_mtime = mtime;
