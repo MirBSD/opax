@@ -340,6 +340,7 @@ sig_cleanup(int which_sig)
 	}
 
 	ar_close();			/* XXX signal race */
+	sltab_process(1);
 	proc_dir();			/* XXX signal race */
 	if (tflag)
 		atdir_end();		/* XXX signal race */
