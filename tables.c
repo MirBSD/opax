@@ -1392,9 +1392,9 @@ do_atdir(const char *name, dev_t dev, ino_t ino)
 	/*
 	 * found it. set the times and remove the entry from the table.
 	 */
+	set_attr(&pt->ft, 1, 0, 0, 0);
 	sigfillset(&allsigs);
 	sigprocmask(SIG_BLOCK, &allsigs, &savedsigs);
-	set_attr(&pt->ft, 1, 0, 0, 0);
 	*ppt = pt->fow;
 	sigprocmask(SIG_SETMASK, &savedsigs, NULL);
 	free(pt->ft.ft_name);
