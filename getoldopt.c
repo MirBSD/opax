@@ -10,7 +10,7 @@
  * in the Public Domain for your edification and enjoyment.
  */
 
-#include <sys/param.h>
+#include <sys/times.h>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>

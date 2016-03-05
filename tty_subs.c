@@ -37,7 +37,7 @@
  */
 
 #define _GNU_SOURCE
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -91,7 +91,7 @@ tty_prnt(const char *fmt, ...)
 {
 	va_list ap;
 	char *cp;
-	int len;
+	volatile int len;
 
 	va_start(ap, fmt);
 	if (ttyfd != -1) {

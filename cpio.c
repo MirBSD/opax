@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <limits.h>
@@ -303,9 +303,10 @@ cpio_rd(ARCHD *arcn, char *buf)
 	arcn->sb.st_rdev = (dev_t)asc_ul(hd->c_rdev, sizeof(hd->c_rdev), OCT);
 	val = asc_uqd(hd->c_mtime, sizeof(hd->c_mtime), OCT);
 	if ((time_t)val < 0 || (time_t)val != val)
-		arcn->sb.st_mtime = INT_MAX;			/* XXX 2038 */
+		arcn->sb.st_mtime = sizeof(time_t) > 4 ?
+		    (time_t)-1 : (time_t)INT_MAX;
 	else
-		arcn->sb.st_mtime = val;
+		arcn->sb.st_mtime = (time_t)val;
 	arcn->sb.st_ctime = arcn->sb.st_atime = arcn->sb.st_mtime;
 	arcn->sb.st_size = (off_t)asc_ot(hd->c_filesize,sizeof(hd->c_filesize),
 	    OCT);
@@ -375,7 +376,7 @@ dist_stwr(int is_app)
 {
 	anonarch &= ANON_DEBUG | ANON_VERBOSE;
 	anonarch |= ANON_UIDGID | ANON_INODES | ANON_HARDLINKS;
-	return(cpio_stwr(is_app));
+	return (cpio_stwr(is_app));
 }
 
 /*
@@ -394,8 +395,8 @@ cpio_wr(ARCHD *arcn)
 	int nsz;
 	char hdblk[sizeof(HD_CPIO)];
 
-	u_long t_uid, t_gid, t_dev;
-	uint64_t t_mtime;
+	u_long t_uid = 0, t_gid = 0, t_dev = 0;
+	int64_t t_mtime = 0;
 	ino_t t_ino;
 
 	anonarch_init();
@@ -412,12 +413,18 @@ cpio_wr(ARCHD *arcn)
 	if ((arcn->type != PAX_BLK) && (arcn->type != PAX_CHR))
 		arcn->sb.st_rdev = 0;
 
-	t_uid   = (anonarch & ANON_UIDGID) ? 0UL : (u_long)arcn->sb.st_uid;
-	t_gid   = (anonarch & ANON_UIDGID) ? 0UL : (u_long)arcn->sb.st_gid;
-	t_mtime = (anonarch & ANON_MTIME) ? 0UL : (u_long)arcn->sb.st_mtime;
-	t_ino   = (anonarch & ANON_INODES) ? (ino_t)chk_flnk(arcn) :
-	    arcn->sb.st_ino;
-	t_dev   = (anonarch & ANON_INODES) ? 0UL : (u_long)arcn->sb.st_dev;
+	if (!(anonarch & ANON_UIDGID)) {
+		t_uid = (u_long)arcn->sb.st_uid;
+		t_gid = (u_long)arcn->sb.st_gid;
+	}
+	if (!(anonarch & ANON_MTIME))
+		t_mtime = (int64_t)arcn->sb.st_mtime;
+	if (anonarch & ANON_INODES)
+		t_ino = (ino_t)chk_flnk(arcn);
+	else {
+		t_ino = arcn->sb.st_ino;
+		t_dev = (u_long)arcn->sb.st_dev;
+	}
 	if (!cpio_trail(arcn, NULL, 0, NULL))
 		t_ino = 0UL;
 	if (t_ino == (ino_t)-1) {
@@ -461,9 +468,9 @@ cpio_wr(ARCHD *arcn)
 
 	if (anonarch & ANON_DEBUG)
 		paxwarn(0, "writing dev %lX inode %10lX mode %8lo user %ld:%ld"
-		    "\n\tnlink %3ld mtime %08lX name '%s'", t_dev,
+		    "\n\tnlink %3ld mtime %08llX name '%s'", t_dev,
 		    (u_long)t_ino, (u_long)arcn->sb.st_mode, t_uid, t_gid,
-		    (u_long)arcn->sb.st_nlink, t_mtime, arcn->name);
+		    (u_long)arcn->sb.st_nlink, (uint64_t)t_mtime, arcn->name);
 
 	/*
 	 * copy the values to the header using octal ascii
@@ -483,7 +490,7 @@ cpio_wr(ARCHD *arcn)
 		 OCT) ||
 	    ul_asc((u_long)arcn->sb.st_rdev, hd->c_rdev, sizeof(hd->c_rdev),
 		OCT) ||
-	    uqd_asc(t_mtime < 0 ? 0 : t_mtime, hd->c_mtime,
+	    uqd_asc(t_mtime < 0 ? 0ULL : (uint64_t)t_mtime, hd->c_mtime,
 		sizeof(hd->c_mtime), OCT) ||
 	    ul_asc((u_long)nsz, hd->c_namesize, sizeof(hd->c_namesize), OCT))
 		goto out;
@@ -739,7 +746,8 @@ vcpio_wr(ARCHD *arcn)
 	unsigned int nsz;
 	char hdblk[sizeof(HD_VCPIO)];
 
-	u_long t_uid, t_gid, t_mtime, t_major, t_minor;
+	u_long t_uid = 0, t_gid = 0, t_major = 0, t_minor = 0;
+	int64_t t_mtime = 0;
 	ino_t t_ino;
 
 	anonarch_init();
@@ -772,13 +780,19 @@ vcpio_wr(ARCHD *arcn)
 			goto out;
 	}
 
-	t_uid   = (anonarch & ANON_UIDGID) ? 0UL : (u_long)arcn->sb.st_uid;
-	t_gid   = (anonarch & ANON_UIDGID) ? 0UL : (u_long)arcn->sb.st_gid;
-	t_mtime = (anonarch & ANON_MTIME) ? 0UL : (u_long)arcn->sb.st_mtime;
-	t_ino   = (anonarch & ANON_INODES) ? (ino_t)chk_flnk(arcn) :
-	    arcn->sb.st_ino;
-	t_major = (anonarch & ANON_INODES) ? 0UL : (u_long)MAJOR(arcn->sb.st_dev);
-	t_minor = (anonarch & ANON_INODES) ? 0UL : (u_long)MINOR(arcn->sb.st_dev);
+	if (!(anonarch & ANON_UIDGID)) {
+		t_uid = (u_long)arcn->sb.st_uid;
+		t_gid = (u_long)arcn->sb.st_gid;
+	}
+	if (!(anonarch & ANON_MTIME))
+		t_mtime = (int64_t)arcn->sb.st_mtime;
+	if (anonarch & ANON_INODES)
+		t_ino = (ino_t)chk_flnk(arcn);
+	else {
+		t_ino = arcn->sb.st_ino;
+		t_major = (u_long)MAJOR(arcn->sb.st_dev);
+		t_minor = (u_long)MINOR(arcn->sb.st_dev);
+	}
 	if (!cpio_trail(arcn, NULL, 0, NULL))
 		t_ino = 0UL;
 	if (t_ino == (ino_t)-1) {
@@ -827,9 +841,9 @@ vcpio_wr(ARCHD *arcn)
 
 	if (anonarch & ANON_DEBUG)
 		paxwarn(0, "writing dev %lX:%lx inode %10lX mode %8lo user %ld:%ld"
-		    "\n\tnlink %3ld mtime %08lX name '%s'", t_major, t_minor,
+		    "\n\tnlink %3ld mtime %08llX name '%s'", t_major, t_minor,
 		    (u_long)t_ino, (u_long)arcn->sb.st_mode, t_uid, t_gid,
-		    (u_long)arcn->sb.st_nlink, t_mtime, arcn->name);
+		    (u_long)arcn->sb.st_nlink, (uint64_t)t_mtime, arcn->name);
 
 	/*
 	 * set the other fields in the header
@@ -842,7 +856,7 @@ vcpio_wr(ARCHD *arcn)
 		HEX) ||
 	    ul_asc(t_gid, hd->c_gid, sizeof(hd->c_gid),
 		HEX) ||
-	    ul_asc(t_mtime < 0 ? 0 : t_mtime, hd->c_mtime,
+	    ul_asc(t_mtime < 0 ? 0ULL : (uint64_t)t_mtime, hd->c_mtime,
 		sizeof(hd->c_mtime), HEX) ||
 	    ul_asc((u_long)arcn->sb.st_nlink, hd->c_nlink, sizeof(hd->c_nlink),
 		HEX) ||

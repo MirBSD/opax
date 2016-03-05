@@ -2,7 +2,7 @@
 /*	$NetBSD: tables.c,v 1.4 1995/03/21 09:07:45 cgd Exp $	*/
 
 /*-
- * Copyright (c) 2005, 2012, 2015
+ * Copyright (c) 2005, 2012, 2015, 2016
  *	mirabilos <m@mirbsd.org>
  * Copyright (c) 2011
  *	Svante Signell <svante.signell@telia.com>
@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -569,7 +569,7 @@ sltab_add_sym(const char *path0, const char *value0, mode_t mode)
 
 	if (havechd && *path0 != '/') {
 		if ((path = realpath(path0, NULL)) == NULL) {
-			syswarn(1, errno, "Cannot canonicalize %s", path0);
+			syswarn(1, errno, "Cannot canonicalise %s", path0);
 			unlink(path0);
 			return (-1);
 		}
@@ -659,7 +659,7 @@ sltab_add_link(const char *path, const struct stat *sb)
 		}
 		if (havechd && *path != '/') {
 			if ((p->sp_path = realpath(path, NULL)) == NULL) {
-				syswarn(1, errno, "Cannot canonicalize %s",
+				syswarn(1, errno, "Cannot canonicalise %s",
 				    path);
 				free(p);
 				return (-1);
@@ -1333,12 +1333,12 @@ add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
 	/*
 	 * add it to the front of the hash chain
 	 */
-	if ((pt = (ATDIR *)malloc(sizeof(ATDIR))) != NULL) {
-		if ((pt->ft.name = strdup(fname)) != NULL) {
-			pt->ft.dev = dev;
-			pt->ft.ino = ino;
-			pt->ft.mtime = mtime;
-			pt->ft.atime = atime;
+	if ((pt = malloc(sizeof *pt)) != NULL) {
+		if ((pt->ft.ft_name = strdup(fname)) != NULL) {
+			pt->ft.ft_dev = dev;
+			pt->ft.ft_ino = ino;
+			pt->ft.ft_mtime = mtime;
+			pt->ft.ft_atime = atime;
 			pt->fow = atab[indx];
 			atab[indx] = pt;
 			return;
@@ -1465,7 +1465,7 @@ add_dir(char *name, struct stat *psb, int frc_mode)
 #if (_POSIX_VERSION >= 200809L)
 	char *rp = NULL;
 #else
-	char realname[MAXPATHLEN], *rp;
+	char realname[PATH_MAX], *rp;
 #endif
 
 	if (dirp == NULL)
@@ -1680,7 +1680,7 @@ flnk_start(void)
 {
 	if (fltab != NULL)
 		return (0);
- 	if ((fltab = (HRDFLNK **)calloc(L_TAB_SZ, sizeof(HRDFLNK *))) == NULL) {
+ 	if ((fltab = calloc(L_TAB_SZ, sizeof(HRDFLNK *))) == NULL) {
 		paxwarn(1, "Cannot allocate memory for %s", "hard link table");
 		return (-1);
 	}
@@ -1753,7 +1753,7 @@ chk_flnk(ARCHD *arcn)
 	 * we never saw this file before. It has links so we add it to the
 	 * front of this hash chain
 	 */
-	if ((pt = (HRDFLNK *)malloc(sizeof(HRDFLNK))) != NULL) {
+	if ((pt = malloc(sizeof(HRDFLNK))) != NULL) {
 		pt->dev = arcn->sb.st_dev;
 		pt->ino = arcn->sb.st_ino;
 		pt->nlink = arcn->sb.st_nlink;

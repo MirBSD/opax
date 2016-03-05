@@ -3,7 +3,7 @@
 /*	$NetBSD: tables.h,v 1.3 1995/03/21 09:07:47 cgd Exp $	*/
 
 /*-
- * Copyright (c) 2005
+ * Copyright (c) 2005, 2016
  *	mirabilos <m@mirbsd.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
@@ -62,8 +62,8 @@
  * hard links in a file system or with some archive formats (cpio)
  */
 typedef struct hrdlnk {
-	char		*name;	/* name of first file seen with this ino/dev */
 	ino_t		ino;	/* files inode number */
+	char		*name;	/* name of first file seen with this ino/dev */
 	dev_t		dev;	/* files device number */
 	u_long		nlink;	/* expected link count */
 	struct hrdlnk	*fow;
@@ -171,9 +171,9 @@ typedef struct dirdata {
  * file hard link structure (hashed by dev/ino and chained) for anonymisation
  */
 typedef struct hrdflnk {
-	dev_t		dev;	/* files device number */
 	ino_t		ino;	/* files inode number */
-	u_long		nlink;	/* expected link count */
 	ino_t		newi;	/* new inode number */
+	u_long		nlink;	/* expected link count */
 	struct hrdflnk	*fow;
+	dev_t		dev;	/* files device number */
 } HRDFLNK;

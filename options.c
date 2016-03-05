@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -64,10 +64,6 @@ __RCSID("$MirOS: src/bin/pax/options.c,v 1.52 2014/07/03 19:36:25 tg Exp $");
 
 #ifndef _PATH_DEFTAPE
 #define _PATH_DEFTAPE "/dev/rmt0"
-#endif
-
-#ifdef __GLIBC__
-char *fgetln(FILE *, size_t *);
 #endif
 
 /*

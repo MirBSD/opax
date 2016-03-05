@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2011 mirabilos
+ * Copyright (c) 2011, 2016
+ *	mirabilos <m@mirbsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -140,8 +141,13 @@ uar_rd(ARCHD *arcn, char *buf)
 	arcn->sb.st_nlink = 1;
 	arcn->type = PAX_REG;
 
-	arcn->sb.st_ctime = arcn->sb.st_atime = arcn->sb.st_mtime =
-	    uar_atoi64(h->ar_mtime, sizeof(h->ar_mtime));
+	i = uar_atoi64(h->ar_mtime, sizeof(h->ar_mtime));
+	if ((time_t)i < 0 || (time_t)i != i)
+		arcn->sb.st_mtime = sizeof(time_t) > 4 ?
+		    (time_t)-1 : (time_t)INT_MAX;
+	else
+		arcn->sb.st_mtime = (time_t)i;
+	arcn->sb.st_ctime = arcn->sb.st_atime = arcn->sb.st_mtime;
 	arcn->sb.st_uid = uar_atoi32(h->ar_uid, sizeof(h->ar_uid));
 	arcn->sb.st_gid = uar_atoi32(h->ar_gid, sizeof(h->ar_gid));
 	arcn->sb.st_mode = uar_otoi32(h->ar_mode, sizeof(h->ar_mode)) |
@@ -212,8 +218,8 @@ int
 uar_wr(ARCHD *arcn)
 {
 	HD_AR h;
-	u_long t_uid, t_gid;
-	time_t t_mtime = 0;
+	u_long t_uid = 0, t_gid = 0;
+	int64_t t_mtime = 0;
 	char *extname;
 	size_t n;
 	u_long t_mode[sizeof(arcn->sb.st_mode) <= sizeof(u_long) ? 1 : -1];
@@ -246,15 +252,17 @@ uar_wr(ARCHD *arcn)
 	else
 		++extname;
 
-	t_uid = (anonarch & ANON_UIDGID) ? 0UL : (u_long)arcn->sb.st_uid;
-	t_gid = (anonarch & ANON_UIDGID) ? 0UL : (u_long)arcn->sb.st_gid;
-	t_mode[0] = arcn->sb.st_mode;
 	if (!(anonarch & ANON_MTIME))
-		t_mtime = arcn->sb.st_mtime;
+		t_mtime = (int64_t)arcn->sb.st_mtime;
+	if (!(anonarch & ANON_UIDGID)) {
+		t_uid = (u_long)arcn->sb.st_uid;
+		t_gid = (u_long)arcn->sb.st_gid;
+	}
+	t_mode[0] = arcn->sb.st_mode;
 
-	if (sizeof(time_t) > 4 && t_mtime > (time_t)999999999999ULL) {
+	if (sizeof(time_t) > 4 && (uint64_t)t_mtime > 999999999999ULL) {
 		paxwarn(1, "%s overflow for %s", "mtime", arcn->org_name);
-		t_mtime = (time_t)999999999999ULL;
+		t_mtime = 999999999999LL;
 	}
 	if (t_uid > 999999UL) {
 		paxwarn(1, "%s overflow for %s", "uid", arcn->org_name);
@@ -275,8 +283,8 @@ uar_wr(ARCHD *arcn)
 
 	if (anonarch & ANON_DEBUG)
 		paxwarn(0, "writing mode %8lo user %ld:%ld "
-		    "mtime %08lX name '%s'", t_mode[0],
-		    t_uid, t_gid, (u_long)t_mtime, extname);
+		    "mtime %08llX name '%s'", t_mode[0],
+		    t_uid, t_gid, (uint64_t)t_mtime, extname);
 
 	memset(&h, ' ', sizeof(HD_AR));
 
@@ -297,7 +305,7 @@ uar_wr(ARCHD *arcn)
 	h.ar_name[2] = 0x2F;
 	uar_itoa32(&(h.ar_name[3]), n);
  got_name:
-	uar_itoa64(h.ar_mtime, t_mtime);
+	uar_itoa64(h.ar_mtime, (uint64_t)t_mtime);
 	uar_itoa32(h.ar_uid, t_uid);
 	uar_itoa32(h.ar_gid, t_gid);
 	uar_itoo32(h.ar_mode, t_mode[0]);

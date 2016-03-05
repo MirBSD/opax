@@ -949,8 +949,8 @@ ustar_wr(ARCHD *arcn)
 	char *pt;
 	char hdblk[sizeof(HD_USTAR)];
 
-	u_long t_uid, t_gid;
-	uint64_t t_mtime;
+	u_long t_uid = 0, t_gid = 0;
+	int64_t t_mtime = 0;
 
 	anonarch_init();
 
@@ -1023,12 +1023,12 @@ ustar_wr(ARCHD *arcn)
 	fieldcpy(hd->name, sizeof(hd->name), pt,
 	    sizeof(arcn->name) - (pt - arcn->name));
 
-	t_uid   = (anonarch & ANON_UIDGID) ? 0UL : (u_long)arcn->sb.st_uid;
-	t_gid   = (anonarch & ANON_UIDGID) ? 0UL : (u_long)arcn->sb.st_gid;
-	if (anonarch & ANON_MTIME)
-		t_mtime = 0;
-	else
-		t_mtime = (uint64_t)arcn->sb.st_mtime;
+	if (!(anonarch & ANON_UIDGID)) {
+		t_uid = (u_long)arcn->sb.st_uid;
+		t_gid = (u_long)arcn->sb.st_gid;
+	}
+	if (!(anonarch & ANON_MTIME))
+		t_mtime = (int64_t)arcn->sb.st_mtime;
 
 	/*
 	 * set the fields in the header that are type dependent
@@ -1122,7 +1122,7 @@ ustar_wr(ARCHD *arcn)
 		if (ul_oct((u_long)gid_nobody, hd->gid, sizeof(hd->gid), 3))
 			goto out;
 	}
-	if (uqd_oct(t_mtime < 0 ? 0 : t_mtime, hd->mtime,
+	if (uqd_oct(t_mtime < 0 ? 0ULL : (uint64_t)t_mtime, hd->mtime,
 		sizeof(hd->mtime), 3) ||
 	    ul_oct((u_long)arcn->sb.st_mode, hd->mode, sizeof(hd->mode), 3))
 		goto out;
