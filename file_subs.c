@@ -368,7 +368,11 @@ mk_link(char *to, struct stat *to_sb, char *from, int ign)
 	 * try again)
 	 */
 	for (;;) {
+#ifdef HAVE_LINKAT
 		if (linkat(AT_FDCWD, to, AT_FDCWD, from, 0) == 0)
+#else
+		if (link(to, from) == 0)
+#endif
 			break;
 		oerrno = errno;
 		if (S_ISLNK(to_sb->st_mode)) {

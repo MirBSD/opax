@@ -17,13 +17,17 @@ LINKS+=	${BINDIR}/pax ${BINDIR}/tar
 
 .if (${MACHINE_OS} == "Interix") || (${MACHINE_OS} == "Linux") || \
     ((${MACHINE_OS} == "GNU") && (${OSNAME} != "GNU/kFreeBSD"))
-CPPFLAGS+= -DLONG_OFF_T
+CPPFLAGS+= -DLONG_OFF_T # not on kFreeBSD or Linux/x32; XXX TODO: mirtoconf
+.endif
+
+.if (${MACHINE_OS} == "GNU") || (${MACHINE_OS} == "Linux")
+CPPFLAGS+= -DHAVE_LINKAT # probably
 .endif
 
 .if (${MACHINE_OS} == "BSD")
 CPPFLAGS+= -DHAVE_STRLCPY
 CPPFLAGS+= -DHAVE_STRMODE
-CPPFLAGS+= -DHAVE_REALLOCARRAY
+CPPFLAGS+= -DHAVE_REALLOCARRAY # probably
 CPPFLAGS+= -DHAVE_VIS
 .endif
 
