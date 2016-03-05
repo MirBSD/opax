@@ -368,7 +368,7 @@ mk_link(char *to, struct stat *to_sb, char *from, int ign)
 	 * try again)
 	 */
 	for (;;) {
-		if (link(to, from) == 0)
+		if (linkat(AT_FDCWD, to, AT_FDCWD, from, 0) == 0)
 			break;
 		oerrno = errno;
 		if (S_ISLNK(to_sb->st_mode)) {
