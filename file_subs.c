@@ -1,4 +1,4 @@
-/*	$OpenBSD: file_subs.c,v 1.32 2009/12/22 12:08:30 jasper Exp $	*/
+/*	$OpenBSD: file_subs.c,v 1.36 2014/07/14 05:58:19 guenther Exp $	*/
 /*	$NetBSD: file_subs.c,v 1.4 1995/03/21 09:07:18 cgd Exp $	*/
 
 /*-
@@ -316,7 +316,7 @@ mk_link(char *to, struct stat *to_sb, char *from, int ign)
 	 * try again)
 	 */
 	for (;;) {
-		if (link(to, from) == 0)
+		if (linkat(AT_FDCWD, to, AT_FDCWD, from, 0) == 0)
 			break;
 		oerrno = errno;
 		if (!nodirs && chk_path(from, to_sb->st_uid, to_sb->st_gid) == 0)
@@ -471,17 +471,9 @@ badlink:
 	 * we were able to create the node. set uid/gid, modes and times
 	 */
 	if (pids)
-		res = ((arcn->type == PAX_SLK) ?
-		    set_lids(nm, arcn->sb.st_uid, arcn->sb.st_gid) :
-		    set_ids(nm, arcn->sb.st_uid, arcn->sb.st_gid));
+		res = set_ids(nm, arcn->sb.st_uid, arcn->sb.st_gid);
 	else
 		res = 0;
-
-	/*
-	 * symlinks are done now.
-	 */
-	if (arcn->type == PAX_SLK)
-		return(0);
 
 	/*
 	 * IMPORTANT SECURITY NOTE:
@@ -681,70 +673,62 @@ chk_path(char *name, uid_t st_uid, gid_t st_gid)
  *	request access and/or modification time preservation (this is also
  *	used by -t to reset access times).
  *	When ign is zero, only those times the user has asked for are set, the
- *	other ones are left alone. We do not assume the un-documented feature
- *	of many utimes() implementations that consider a 0 time value as a do
- *	not set request.
+ *	other ones are left alone.
  */
 
 void
 set_ftime(char *fnm, time_t mtime, time_t atime, int frc)
 {
-	static struct timeval tv[2] = {{0L, 0L}, {0L, 0L}};
-	struct stat sb;
+	struct timespec tv[2];
 
-	tv[0].tv_sec = (long)atime;
-	tv[1].tv_sec = (long)mtime;
-	if (!frc && (!patime || !pmtime)) {
+	tv[0].tv_sec = atime;
+	tv[0].tv_nsec = 0L;
+	tv[1].tv_sec = mtime;
+	tv[1].tv_nsec = 0L;
+	if (!frc) {
 		/*
 		 * if we are not forcing, only set those times the user wants
-		 * set. We get the current values of the times if we need them.
+		 * set.
 		 */
-		if (lstat(fnm, &sb) == 0) {
-			if (!patime)
-				tv[0].tv_sec = (long)sb.st_atime;
-			if (!pmtime)
-				tv[1].tv_sec = (long)sb.st_mtime;
-		} else
-			syswarn(0,errno,"Unable to obtain file stats %s", fnm);
+		if (!patime)
+			tv[0].tv_nsec = UTIME_OMIT;
+		if (!pmtime)
+			tv[1].tv_nsec = UTIME_OMIT;
 	}
 
 	/*
 	 * set the times
 	 */
-	if (utimes(fnm, tv) < 0)
+	if (utimensat(AT_FDCWD, fnm, tv, AT_SYMLINK_NOFOLLOW) < 0)
 		syswarn(1, errno, "Access/modification time set failed on: %s",
 		    fnm);
-	return;
 }
 
 void
 fset_ftime(char *fnm, int fd, time_t mtime, time_t atime, int frc)
 {
-	static struct timeval tv[2] = {{0L, 0L}, {0L, 0L}};
-	struct stat sb;
+	struct timespec tv[2];
 
-	tv[0].tv_sec = (long)atime;
-	tv[1].tv_sec = (long)mtime;
-	if (!frc && (!patime || !pmtime)) {
+	tv[0].tv_sec = atime;
+	tv[0].tv_nsec = 0L;
+	tv[1].tv_sec = mtime;
+	tv[1].tv_nsec = 0L;
+	if (!frc) {
 		/*
 		 * if we are not forcing, only set those times the user wants
-		 * set. We get the current values of the times if we need them.
+		 * set.
 		 */
-		if (fstat(fd, &sb) == 0) {
-			if (!patime)
-				tv[0].tv_sec = (long)sb.st_atime;
-			if (!pmtime)
-				tv[1].tv_sec = (long)sb.st_mtime;
-		} else
-			syswarn(0,errno,"Unable to obtain file stats %s", fnm);
+		if (!patime)
+			tv[0].tv_nsec = UTIME_OMIT;
+		if (!pmtime)
+			tv[1].tv_nsec = UTIME_OMIT;
 	}
 	/*
 	 * set the times
 	 */
-	if (futimes(fd, tv) < 0)
+	if (futimens(fd, tv) < 0)
 		syswarn(1, errno, "Access/modification time set failed on: %s",
 		    fnm);
-	return;
 }
 
 /*
@@ -757,7 +741,7 @@ fset_ftime(char *fnm, int fd, time_t mtime, time_t atime, int frc)
 int
 set_ids(char *fnm, uid_t uid, gid_t gid)
 {
-	if (chown(fnm, uid, gid) < 0) {
+	if (fchownat(AT_FDCWD, fnm, uid, gid, AT_SYMLINK_NOFOLLOW) < 0) {
 		/*
 		 * ignore EPERM unless in verbose mode or being run by root.
 		 * if running as pax, POSIX requires a warning.
@@ -789,30 +773,6 @@ fset_ids(char *fnm, int fd, uid_t uid, gid_t gid)
 }
 
 /*
- * set_lids()
- *	set the uid and gid of a file system node
- * Return:
- *	0 when set, -1 on failure
- */
-
-int
-set_lids(char *fnm, uid_t uid, gid_t gid)
-{
-	if (lchown(fnm, uid, gid) < 0) {
-		/*
-		 * ignore EPERM unless in verbose mode or being run by root.
-		 * if running as pax, POSIX requires a warning.
-		 */
-		if (strcmp(NM_PAX, argv0) == 0 || errno != EPERM || vflag ||
-		    geteuid() == 0)
-			syswarn(1, errno, "Unable to set file uid/gid of %s",
-			    fnm);
-		return(-1);
-	}
-	return(0);
-}
-
-/*
  * set_pmode()
  *	Set file access mode
  */
@@ -821,9 +781,8 @@ void
 set_pmode(char *fnm, mode_t mode)
 {
 	mode &= ABITS;
-	if (chmod(fnm, mode) < 0)
+	if (fchmodat(AT_FDCWD, fnm, mode, AT_SYMLINK_NOFOLLOW) < 0)
 		syswarn(1, errno, "Could not set permissions on %s", fnm);
-	return;
 }
 
 void
@@ -832,7 +791,6 @@ fset_pmode(char *fnm, int fd, mode_t mode)
 	mode &= ABITS;
 	if (fchmod(fd, mode) < 0)
 		syswarn(1, errno, "Could not set permissions on %s", fnm);
-	return;
 }
 
 /*
@@ -1064,7 +1022,6 @@ file_flush(int fd, char *fname, int isempt)
 
 	if (write(fd, blnk, 1) < 0)
 		syswarn(1, errno, "Failed write to file %s", fname);
-	return;
 }
 
 /*

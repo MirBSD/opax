@@ -1,4 +1,4 @@
-/*	$OpenBSD: tar.c,v 1.43 2010/12/02 04:08:27 tedu Exp $	*/
+/*	$OpenBSD: tar.c,v 1.53 2014/02/19 03:59:47 guenther Exp $	*/
 /*	$NetBSD: tar.c,v 1.5 1995/03/21 09:07:49 cgd Exp $	*/
 
 /*-
@@ -37,7 +37,9 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -54,8 +56,9 @@ static size_t expandname(char *, size_t, char **, const char *, size_t);
 static u_long tar_chksm(char *, int);
 static char *name_split(char *, int);
 static int ul_oct(u_long, char *, int, int);
-#ifndef LONG_OFF_T
 static int uqd_oct(u_quad_t, char *, int, int);
+#ifndef SMALL
+static int rd_xheader(ARCHD *, char *, off_t, char);
 #endif
 
 static uid_t uid_nobody;
@@ -194,7 +197,6 @@ ul_oct(u_long val, char *str, int len, int term)
 	return(0);
 }
 
-#ifndef LONG_OFF_T
 /*
  * uqd_oct()
  *	convert an u_quad_t to an octal string. one of many oddball field
@@ -248,7 +250,6 @@ uqd_oct(u_quad_t val, char *str, int len, int term)
 		return(-1);
 	return(0);
 }
-#endif
 
 /*
  * tar_chksm()
@@ -377,6 +378,7 @@ int
 tar_rd(ARCHD *arcn, char *buf)
 {
 	HD_TAR *hd;
+	u_quad_t val;
 	char *pt;
 
 	/*
@@ -402,12 +404,12 @@ tar_rd(ARCHD *arcn, char *buf)
 	    0xfff);
 	arcn->sb.st_uid = (uid_t)asc_ul(hd->uid, sizeof(hd->uid), OCT);
 	arcn->sb.st_gid = (gid_t)asc_ul(hd->gid, sizeof(hd->gid), OCT);
-#ifdef LONG_OFF_T
-	arcn->sb.st_size = (off_t)asc_ul(hd->size, sizeof(hd->size), OCT);
-#else
 	arcn->sb.st_size = (off_t)asc_uqd(hd->size, sizeof(hd->size), OCT);
-#endif
-	arcn->sb.st_mtime = (time_t)asc_ul(hd->mtime, sizeof(hd->mtime), OCT);
+	val = asc_uqd(hd->mtime, sizeof(hd->mtime), OCT);
+	if ((time_t)val < 0 || (time_t)val != val)
+		arcn->sb.st_mtime = INT_MAX;                    /* XXX 2038 */
+	else
+		arcn->sb.st_mtime = val;
 	arcn->sb.st_ctime = arcn->sb.st_atime = arcn->sb.st_mtime;
 
 	/*
@@ -613,13 +615,8 @@ tar_wr(ARCHD *arcn)
 		 * data follows this file, so set the pad
 		 */
 		hd->linkflag = AREGTYPE;
-#		ifdef LONG_OFF_T
-		if (ul_oct((u_long)arcn->sb.st_size, hd->size,
-		    sizeof(hd->size), 1)) {
-#		else
 		if (uqd_oct((u_quad_t)arcn->sb.st_size, hd->size,
 		    sizeof(hd->size), 1)) {
-#		endif
 			paxwarn(1,"File is too large for tar %s", arcn->org_name);
 			return(1);
 		}
@@ -630,9 +627,10 @@ tar_wr(ARCHD *arcn)
 	 * copy those fields that are independent of the type
 	 */
 	if (ul_oct((u_long)arcn->sb.st_mode, hd->mode, sizeof(hd->mode), 0) ||
+	    uqd_oct(arcn->sb.st_mtime < 0 ? 0 : arcn->sb.st_mtime, hd->mtime,
+		sizeof(hd->mtime), 1) ||
 	    ul_oct((u_long)arcn->sb.st_uid, hd->uid, sizeof(hd->uid), 0) ||
-	    ul_oct((u_long)arcn->sb.st_gid, hd->gid, sizeof(hd->gid), 0) ||
-	    ul_oct((u_long)(u_int)arcn->sb.st_mtime, hd->mtime, sizeof(hd->mtime), 1))
+	    ul_oct((u_long)arcn->sb.st_gid, hd->gid, sizeof(hd->gid), 0))
 		goto out;
 
 	/*
@@ -741,6 +739,7 @@ ustar_rd(ARCHD *arcn, char *buf)
 	int cnt = 0;
 	dev_t devmajor;
 	dev_t devminor;
+	u_quad_t val;
 
 	/*
 	 * we only get proper sized buffers
@@ -752,24 +751,42 @@ ustar_rd(ARCHD *arcn, char *buf)
 	arcn->sb.st_nlink = 1;
 	hd = (HD_USTAR *)buf;
 
-	/*
-	 * see if the filename is split into two parts. if, so joint the parts.
-	 * we copy the prefix first and add a / between the prefix and name.
-	 */
-	dest = arcn->name;
-	if (*(hd->prefix) != '\0') {
-		cnt = fieldcpy(dest, sizeof(arcn->name) - 1, hd->prefix,
-		    sizeof(hd->prefix));
-		dest += cnt;
-		*dest++ = '/';
-		cnt++;
-	} else {
-		cnt = 0;
+#ifndef SMALL
+	/* Process the Extended header. */
+	if (hd->typeflag == XHDRTYPE || hd->typeflag == GHDRTYPE) {
+		if (rd_xheader(arcn, buf,
+		    (off_t)asc_ul(hd->size, sizeof(hd->size), OCT),
+		    hd->typeflag) < 0)
+			return (-1);
+	}
+#endif
+
+	if (!arcn->nlen) {
+		/*
+		 * See if the filename is split into two parts. if, so join
+		 * the parts.  We copy the prefix first and add a / between
+		 * the prefix and name.
+		 */
+		dest = arcn->name;
+		if (*(hd->prefix) != '\0') {
+			cnt = fieldcpy(dest, sizeof(arcn->name) - 1,
+			    hd->prefix, sizeof(hd->prefix));
+			dest += cnt;
+			*dest++ = '/';
+			cnt++;
+		} else
+			cnt = 0;
+
+		if (hd->typeflag != LONGLINKTYPE &&
+		    hd->typeflag != LONGNAMETYPE) {
+			arcn->nlen = cnt + expandname(dest,
+			    sizeof(arcn->name) - cnt, &gnu_name_string,
+			    hd->name, sizeof(hd->name));
+		}
 	}
 
-	if (hd->typeflag != LONGLINKTYPE && hd->typeflag != LONGNAMETYPE) {
-		arcn->nlen = cnt + expandname(dest, sizeof(arcn->name) - cnt,
-		    &gnu_name_string, hd->name, sizeof(hd->name));
+	if (!arcn->ln_nlen &&
+	    hd->typeflag != LONGLINKTYPE && hd->typeflag != LONGNAMETYPE) {
 		arcn->ln_nlen = expandname(arcn->ln_name, sizeof(arcn->ln_name),
 		    &gnu_link_string, hd->linkname, sizeof(hd->linkname));
 	}
@@ -780,12 +797,12 @@ ustar_rd(ARCHD *arcn, char *buf)
 	 */
 	arcn->sb.st_mode = (mode_t)(asc_ul(hd->mode, sizeof(hd->mode), OCT) &
 	    0xfff);
-#ifdef LONG_OFF_T
-	arcn->sb.st_size = (off_t)asc_ul(hd->size, sizeof(hd->size), OCT);
-#else
 	arcn->sb.st_size = (off_t)asc_uqd(hd->size, sizeof(hd->size), OCT);
-#endif
-	arcn->sb.st_mtime = (time_t)asc_ul(hd->mtime, sizeof(hd->mtime), OCT);
+	val = asc_uqd(hd->mtime, sizeof(hd->mtime), OCT);
+	if ((time_t)val < 0 || (time_t)val != val)
+		arcn->sb.st_mtime = INT_MAX;                    /* XXX 2038 */
+	else
+		arcn->sb.st_mtime = val;
 	arcn->sb.st_ctime = arcn->sb.st_atime = arcn->sb.st_mtime;
 
 	/*
@@ -915,6 +932,12 @@ ustar_wr(ARCHD *arcn)
 	}
 
 	/*
+	 * user asked that dirs not be written to the archive
+	 */
+	if (arcn->type == PAX_DIR && tar_nodir)
+		return (1);
+
+	/*
 	 * check the length of the linkname
 	 */
 	if (((arcn->type == PAX_SLK) || (arcn->type == PAX_HLK) ||
@@ -1010,13 +1033,8 @@ ustar_wr(ARCHD *arcn)
 		else
 			hd->typeflag = REGTYPE;
 		arcn->pad = TAR_PAD(arcn->sb.st_size);
-#		ifdef LONG_OFF_T
-		if (ul_oct((u_long)arcn->sb.st_size, hd->size,
-		    sizeof(hd->size), 3)) {
-#		else
 		if (uqd_oct((u_quad_t)arcn->sb.st_size, hd->size,
 		    sizeof(hd->size), 3)) {
-#		endif
 			paxwarn(1,"File is too long for ustar %s",arcn->org_name);
 			return(1);
 		}
@@ -1058,8 +1076,9 @@ ustar_wr(ARCHD *arcn)
 		if (ul_oct((u_long)gid_nobody, hd->gid, sizeof(hd->gid), 3))
 			goto out;
 	}
-	if (ul_oct((u_long)arcn->sb.st_mode, hd->mode, sizeof(hd->mode), 3) ||
-	    ul_oct((u_long)(u_int)arcn->sb.st_mtime,hd->mtime,sizeof(hd->mtime),3))
+	if (uqd_oct(arcn->sb.st_mtime < 0 ? 0 : arcn->sb.st_mtime, hd->mtime,
+		sizeof(hd->mtime), 3) ||
+	    ul_oct((u_long)arcn->sb.st_mode, hd->mode, sizeof(hd->mode), 3))
 		goto out;
 	if (!Nflag) {
 		strncpy(hd->uname, name_uid(arcn->sb.st_uid, 0), sizeof(hd->uname));
@@ -1171,3 +1190,67 @@ expandname(char *buf, size_t len, char **gnu_name, const char *name,
 		nlen = fieldcpy(buf, len, name, limit);
 	return(nlen);
 }
+
+#ifndef SMALL
+
+#define MINXHDRSZ	6
+
+static int
+rd_xheader(ARCHD *arcn, char *buf, off_t size, char typeflag)
+{
+	off_t len;
+	char *delim, *keyword;
+	char *nextp, *p;
+
+	if (size < MINXHDRSZ) {
+		paxwarn(1, "Invalid extended header length");
+		return (-1);
+	}
+	if (rd_wrbuf(buf, size) != size)
+		return (-1);
+	if (rd_skip((off_t)BLKMULT - size) < 0)
+		return (-1);
+
+	for (p = buf; size > 0; size -= len, p = nextp) {
+		if (!isdigit((unsigned char)*p)) {
+			paxwarn(1, "Invalid extended header record");
+			return (-1);
+		}
+		errno = 0;
+		len = strtoll(p, &delim, 10);
+		if (*delim != ' ' || (errno == ERANGE &&
+		    (len == LLONG_MIN || len == LLONG_MAX)) ||
+		    len < MINXHDRSZ) {
+			paxwarn(1, "Invalid extended header record length");
+			return (-1);
+		}
+		if (len > size) {
+			paxwarn(1, "Extended header record length %lld is "
+			    "out of range", (long long)len);
+			return (-1);
+		}
+		nextp = p + len;
+		keyword = p = delim + 1;
+		p = memchr(p, '=', len);
+		if (!p || nextp[-1] != '\n') {
+			paxwarn(1, "Malformed extended header record");
+			return (-1);
+		}
+		*p++ = nextp[-1] = '\0';
+		if (typeflag == XHDRTYPE) {
+			if (!strcmp(keyword, "path")) {
+				arcn->nlen = strlcpy(arcn->name, p,
+				    sizeof(arcn->name));
+			} else if (!strcmp(keyword, "linkpath")) {
+				arcn->ln_nlen = strlcpy(arcn->ln_name, p,
+				    sizeof(arcn->ln_name));
+			}
+		}
+	}
+
+	/* Update the ustar header. */
+	if (rd_wrbuf(buf, BLKMULT) != BLKMULT)
+		return (-1);
+	return (0);
+}
+#endif

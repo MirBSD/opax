@@ -1,4 +1,4 @@
-/*	$OpenBSD: ftree.c,v 1.29 2009/10/27 23:59:22 deraadt Exp $	*/
+/*	$OpenBSD: ftree.c,v 1.32 2014/07/11 07:51:48 tedu Exp $	*/
 /*	$NetBSD: ftree.c,v 1.4 1995/03/21 09:07:21 cgd Exp $	*/
 
 /*-
@@ -37,7 +37,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
@@ -153,7 +152,7 @@ ftree_add(char *str, int chflg)
 	 * processed in the same order they were passed to pax). Get rid of any
 	 * trailing / the user may pass us. (watch out for / by itself).
 	 */
-	if ((ft = (FTREE *)malloc(sizeof(FTREE))) == NULL) {
+	if ((ft = malloc(sizeof(FTREE))) == NULL) {
 		paxwarn(0, "Unable to allocate memory for filename");
 		return(-1);
 	}
@@ -476,7 +475,7 @@ next_file(ARCHD *arcn)
 			}
 			/*
 			 * set link name length, watch out readlink does not
-			 * always NUL terminate the link path
+			 * NUL terminate the link path
 			 */
 			arcn->ln_name[cnt] = '\0';
 			arcn->ln_nlen = cnt;
