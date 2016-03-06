@@ -71,8 +71,7 @@ static int ttyfd;
 int
 tty_init(void)
 {
-	if (((ttyfd = open(devtty, O_RDWR)) == -1 ||
-	    fcntl(ttyfd, F_SETFD, FD_CLOEXEC) < 0) && iflag) {
+	if ((ttyfd = open(devtty, O_RDWR | O_CLOEXEC)) == -1 && iflag) {
 		paxwarn(1, "Fatal error, cannot open %s", devtty);
 		return (-1);
 	}
