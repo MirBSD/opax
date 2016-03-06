@@ -235,9 +235,20 @@ main(int argc, char **argv)
 	/*
 	 * Keep a reference to cwd, so we can always come back home.
 	 */
-	cwdfd = open(".", O_RDONLY | O_CLOEXEC);
-	if (cwdfd < 0) {
+	cwdfd = open(".", O_RDONLY
+#ifdef O_CLOEXEC
+	    | O_CLOEXEC
+#endif
+	    );
+	if (cwdfd < 0
+	    || fcntl(cwdfd, F_SETFD, FD_CLOEXEC) < 0
+#endif
+	    ) {
 		syswarn(1, errno, "Can't open current working directory.");
+#ifndef O_CLOEXEC
+		if (cwdfd >= 0)
+			close(cwdfd);
+#endif
 		return(exit_val);
 	}
 
