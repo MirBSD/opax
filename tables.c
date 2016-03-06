@@ -2,7 +2,7 @@
 /*	$NetBSD: tables.c,v 1.4 1995/03/21 09:07:45 cgd Exp $	*/
 
 /*-
- * Copyright (c) 2005, 2012, 2015
+ * Copyright (c) 2005, 2012, 2015, 2016
  *	mirabilos <m@mirbsd.org>
  * Copyright (c) 2011
  *	Svante Signell <svante.signell@telia.com>
@@ -53,7 +53,8 @@
 #include "tables.h"
 #include "extern.h"
 
-__RCSID("$MirOS: src/bin/pax/tables.c,v 1.19 2016/03/06 13:47:50 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/tables.c,v 1.24 2016/03/06 21:06:04 tg Exp $");
+__IDSTRING(rcsid_tables_h, MIRCPIO_TABLES_H);
 
 /*
  * Routines for controlling the contents of all the different databases pax
@@ -78,7 +79,7 @@ static DEVT **dtab = NULL;	/* device/inode mapping tables */
 static ATDIR **atab = NULL;	/* file tree directory time reset table */
 static DIRDATA *dirp = NULL;	/* storage for setting created dir time/mode */
 static size_t dirsize;		/* size of dirp table */
-static long dircnt = 0;		/* entries in dir time/mode storage */
+static size_t dircnt = 0;	/* entries in dir time/mode storage */
 static int ffd = -1;		/* tmp file for file time table name storage */
 
 static DEVT *chk_dev(dev_t, int);
@@ -558,7 +559,12 @@ sltab_add_sym(const char *path0, const char *value0, mode_t mode)
 	int fd;
 
 	/* create the placeholder */
-	fd = open(path0, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+	fd = open(path0, O_WRONLY | O_CREAT |
+#ifdef O_CLOEXEC
+	    /* not strictly required, fd is closed a dozen lines below */
+	    O_CLOEXEC |
+#endif
+	    O_EXCL, 0600);
 	if (fd == -1)
 		return (-1);
 	if (fstat(fd, &sb) == -1) {
@@ -575,12 +581,12 @@ sltab_add_sym(const char *path0, const char *value0, mode_t mode)
 			return (-1);
 		}
 	} else if ((path = strdup(path0)) == NULL) {
-		syswarn(1, errno, "defered symlink path");
+		syswarn(1, errno, "deferred symlink path");
 		unlink(path0);
 		return (-1);
 	}
 	if ((value = strdup(value0)) == NULL) {
-		syswarn(1, errno, "defered symlink value");
+		syswarn(1, errno, "deferred symlink value");
 		unlink(path);
 		free(path);
 		return (-1);
@@ -611,7 +617,7 @@ sltab_add_sym(const char *path0, const char *value0, mode_t mode)
 
 	/* Normal case: create a new node */
 	if ((s = malloc(sizeof *s)) == NULL) {
-		syswarn(1, errno, "defered symlink");
+		syswarn(1, errno, "deferred symlink");
 		unlink(path);
 		free(path);
 		free(value);
@@ -622,7 +628,7 @@ sltab_add_sym(const char *path0, const char *value0, mode_t mode)
 	s->sli_fow = slitab[indx];
 	slitab[indx] = s;
 
-set_value:
+ set_value:
 	s->sli_paths.sp_path = path;
 	s->sli_paths.sp_next = NULL;
 	s->sli_value = value;
@@ -666,7 +672,7 @@ sltab_add_link(const char *path, const struct stat *sb)
 				return (-1);
 			}
 		} else if ((p->sp_path = strdup(path)) == NULL) {
-			syswarn(1, errno, "defered symlink hardlink path");
+			syswarn(1, errno, "deferred symlink hardlink path");
 			free(p);
 			return (-1);
 		}
@@ -708,6 +714,7 @@ sltab_process_one(struct slinode *s, struct slpath *p, const char *first,
 
 	err = 0;
 	if (first != NULL) {
+#ifdef HAVE_LINKAT
 		/* add another hardlink to the existing symlink */
 		if (linkat(AT_FDCWD, first, AT_FDCWD, path, 0) == 0)
 			return (0);
@@ -718,6 +725,9 @@ sltab_process_one(struct slinode *s, struct slpath *p, const char *first,
 		 * for reporting if that fails.
 		 */
 		err = errno;
+#else
+		err = EOPNOTSUPP;
+#endif
 	}
 
 	if (symlink(s->sli_value, path)) {
@@ -1482,7 +1492,7 @@ add_dir(char *name, struct stat *psb, int frc_mode)
 		}
 		name = rp;
 	}
-	if (dircnt == (long)dirsize) {
+	if (dircnt == dirsize) {
 		dblk = realloc(dirp, 2 * dirsize * sizeof(DIRDATA));
 		if (dblk == NULL) {
 			paxwarn(1, "Unable to store mode and times for created"
@@ -1555,7 +1565,7 @@ void
 proc_dir(void)
 {
 	DIRDATA *dblk;
-	long cnt;
+	size_t cnt;
 
 	if (dirp == NULL)
 		return;
@@ -1563,7 +1573,7 @@ proc_dir(void)
 	 * read backwards through the file and process each directory
 	 */
 	cnt = dircnt;
-	while (--cnt >= 0) {
+	while (cnt-- > 0) {
 		dblk = &dirp[cnt];
 		/*
 		 * If we remove a directory we created, we replace the
