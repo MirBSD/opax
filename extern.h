@@ -1,4 +1,3 @@
-/**	$MirOS: src/bin/pax/extern.h,v 1.26 2015/10/14 18:10:08 tg Exp $ */
 /*	$OpenBSD: extern.h,v 1.54 2016/01/01 15:56:03 tedu Exp $	*/
 /*	$NetBSD: extern.h,v 1.5 1996/03/26 23:54:16 mrg Exp $	*/
 
@@ -38,6 +37,9 @@
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/18/94
  */
+
+#ifndef MIRCPIO_EXTERN_H
+#define MIRCPIO_EXTERN_H "$MirOS: src/bin/pax/extern.h,v 1.28 2016/03/06 14:12:27 tg Exp $"
 
 /*
  * External references from each source file
@@ -362,4 +364,6 @@ void strmode(mode_t, char *);
 
 #ifndef HAVE_REALLOCARRAY
 void *reallocarray(void *, size_t, size_t);
+#endif
+
 #endif

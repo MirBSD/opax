@@ -55,7 +55,7 @@
 #include "pax.h"
 #include "extern.h"
 
-__RCSID("$MirOS: src/bin/pax/gen_subs.c,v 1.16 2015/10/14 18:10:08 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/gen_subs.c,v 1.17 2016/03/06 15:28:48 tg Exp $");
 
 /*
  * a collection of general purpose subroutines used by pax

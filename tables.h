@@ -1,4 +1,3 @@
-/**	$MirOS: src/bin/pax/tables.h,v 1.4 2008/11/08 23:03:39 tg Exp $ */
 /*	$OpenBSD: tables.h,v 1.15 2015/03/09 04:23:29 guenther Exp $	*/
 /*	$NetBSD: tables.h,v 1.3 1995/03/21 09:07:47 cgd Exp $	*/
 
@@ -38,6 +37,9 @@
  *
  *	@(#)tables.h	8.1 (Berkeley) 5/31/93
  */
+
+#ifndef MIRCPIO_TABLES_H
+#define MIRCPIO_TABLES_H "$MirOS: src/bin/pax/tables.h,v 1.6 2016/03/06 14:12:29 tg Exp $"
 
 /*
  * data structures and constants used by the different databases kept by pax
@@ -177,3 +179,5 @@ typedef struct hrdflnk {
 	struct hrdflnk	*fow;
 	dev_t		dev;	/* files device number */
 } HRDFLNK;
+
+#endif

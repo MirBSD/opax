@@ -1,9 +1,8 @@
-/**	$MirOS: src/bin/pax/pax.h,v 1.12 2012/02/16 17:27:32 tg Exp $ */
 /*	$OpenBSD: pax.h,v 1.28 2015/11/17 19:01:34 mmcc Exp $	*/
 /*	$NetBSD: pax.h,v 1.3 1995/03/21 09:07:41 cgd Exp $	*/
 
 /*-
- * Copyright (c) 2011, 2012
+ * Copyright (c) 2011, 2012, 2016
  *	mirabilos <m@mirbsd.org>
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
@@ -38,6 +37,9 @@
  *
  *	@(#)pax.h	8.2 (Berkeley) 4/18/94
  */
+
+#ifndef MIRCPIO_PAX_H
+#define MIRCPIO_PAX_H "$MirOS: src/bin/pax/pax.h,v 1.14 2016/03/06 14:12:28 tg Exp $"
 
 /*
  * BSD PAX global data structures and constants.
@@ -326,4 +328,6 @@ typedef unsigned long long ot_type;
 #else
 #define OT_FMT		"lu"
 typedef unsigned long ot_type;
+#endif
+
 #endif

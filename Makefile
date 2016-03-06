@@ -1,4 +1,4 @@
-# $MirOS: src/bin/pax/Makefile,v 1.17 2016/03/03 23:51:32 tg Exp $
+# $MirOS: src/bin/pax/Makefile,v 1.18 2016/03/06 14:59:08 tg Exp $
 # $OpenBSD: Makefile,v 1.10 2001/05/26 00:32:20 millert Exp $
 #-
 # It may be necessary to define some options on pre-4.4BSD or

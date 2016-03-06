@@ -51,7 +51,7 @@
 #include "pax.h"
 #include "extern.h"
 
-__RCSID("$MirOS: src/bin/pax/tty_subs.c,v 1.11 2014/07/03 19:51:55 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/tty_subs.c,v 1.12 2016/03/06 13:47:12 tg Exp $");
 
 /*
  * routines that deal with I/O to and from the user

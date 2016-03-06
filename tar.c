@@ -52,7 +52,7 @@
 #include "tar.h"
 #include "options.h"
 
-__RCSID("$MirOS: src/bin/pax/tar.c,v 1.14 2012/06/05 18:22:58 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/tar.c,v 1.15 2016/03/06 13:47:12 tg Exp $");
 
 /*
  * Routines for reading, writing and header identify of various versions of tar

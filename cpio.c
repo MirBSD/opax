@@ -50,7 +50,7 @@
 #include "extern.h"
 #include "options.h"
 
-__RCSID("$MirOS: src/bin/pax/cpio.c,v 1.20 2012/06/05 18:22:56 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/cpio.c,v 1.21 2016/03/06 13:47:11 tg Exp $");
 
 static int rd_nm(ARCHD *, int);
 static int rd_ln_nm(ARCHD *);
