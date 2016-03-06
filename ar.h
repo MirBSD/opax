@@ -1,4 +1,4 @@
-/* $MirOS: src/bin/pax/ar.h,v 1.1 2011/08/16 21:32:45 tg Exp $ */
+/* $MirOS: src/bin/pax/ar.h,v 1.2 2016/03/06 13:47:10 tg Exp $ */
 
 /*-
  * Copyright (c) 2011 mirabilos

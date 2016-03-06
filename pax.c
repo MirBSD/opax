@@ -53,7 +53,7 @@
 #include "pax.h"
 #include "extern.h"
 
-__RCSID("$MirOS: src/bin/pax/pax.c,v 1.21 2015/10/14 18:10:08 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/pax.c,v 1.22 2016/03/06 13:47:50 tg Exp $");
 
 static int gen_init(void);
 static void sig_cleanup(int) __attribute__((__noreturn__));
