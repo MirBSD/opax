@@ -48,7 +48,7 @@
 #include "pat_rep.h"
 #include "extern.h"
 
-__RCSID("$MirOS: src/bin/pax/pat_rep.c,v 1.6 2012/06/05 19:09:41 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/pat_rep.c,v 1.7 2016/03/06 13:47:49 tg Exp $");
 
 /*
  * routines to handle pattern matching, name modification (regular expression

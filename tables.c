@@ -53,7 +53,7 @@
 #include "tables.h"
 #include "extern.h"
 
-__RCSID("$MirOS: src/bin/pax/tables.c,v 1.18 2015/10/13 20:34:14 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/tables.c,v 1.19 2016/03/06 13:47:50 tg Exp $");
 
 /*
  * Routines for controlling the contents of all the different databases pax

@@ -60,7 +60,7 @@
 #include <sys/mtio.h>
 #endif
 
-__RCSID("$MirOS: src/bin/pax/options.c,v 1.52 2014/07/03 19:36:25 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/options.c,v 1.53 2016/03/06 13:47:11 tg Exp $");
 
 #ifndef _PATH_DEFTAPE
 #define _PATH_DEFTAPE "/dev/rmt0"

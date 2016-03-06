@@ -51,7 +51,7 @@
 #include "extern.h"
 #include "options.h"
 
-__RCSID("$MirOS: src/bin/pax/ar_subs.c,v 1.14 2012/06/05 18:22:55 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/ar_subs.c,v 1.15 2016/03/06 13:47:48 tg Exp $");
 
 static void wr_archive(ARCHD *, int is_app);
 static int get_arc(void);

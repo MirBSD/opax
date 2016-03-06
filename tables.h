@@ -1,4 +1,4 @@
-/**	$MirOS: src/bin/pax/tables.h,v 1.4 2008/11/08 23:03:39 tg Exp $ */
+/**	$MirOS: src/bin/pax/tables.h,v 1.5 2016/03/06 13:47:50 tg Exp $ */
 /*	$OpenBSD: tables.h,v 1.8 2006/08/05 23:05:13 ray Exp $	*/
 /*	$NetBSD: tables.h,v 1.3 1995/03/21 09:07:47 cgd Exp $	*/
 

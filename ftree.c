@@ -48,7 +48,7 @@
 #include "ftree.h"
 #include "extern.h"
 
-__RCSID("$MirOS: src/bin/pax/ftree.c,v 1.6 2012/05/20 16:13:17 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/ftree.c,v 1.7 2016/03/06 13:47:49 tg Exp $");
 
 /*
  * routines to interface with the fts library function.

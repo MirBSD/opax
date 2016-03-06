@@ -57,7 +57,7 @@
 #include "options.h"
 #include "extern.h"
 
-__RCSID("$MirOS: src/bin/pax/file_subs.c,v 1.20 2015/10/13 20:18:50 tg Exp $");
+__RCSID("$MirOS: src/bin/pax/file_subs.c,v 1.21 2016/03/06 13:47:49 tg Exp $");
 
 #ifndef __GLIBC_PREREQ
 #define __GLIBC_PREREQ(maj,min)	0
