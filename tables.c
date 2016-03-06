@@ -1690,7 +1690,7 @@ flnk_start(void)
 {
 	if (fltab != NULL)
 		return (0);
- 	if ((fltab = calloc(L_TAB_SZ, sizeof(HRDFLNK *))) == NULL) {
+	if ((fltab = calloc(L_TAB_SZ, sizeof(HRDFLNK *))) == NULL) {
 		paxwarn(1, "Cannot allocate memory for %s", "hard link table");
 		return (-1);
 	}
